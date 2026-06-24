@@ -101,3 +101,8 @@ class AnswerSubmit(BaseModel):
 class AppointmentWithAnswersCreate(BaseModel):
     appointment: AppointmentCreate
     answers: List[AnswerSubmit]
+
+class SlotOut(BaseModel):
+    time: str
+    available_slots: int
+    is_available: bool
