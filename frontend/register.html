@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Donare de Sânge - Înregistrare</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="auth-card">
+            <div class="logo">
+                <span class="logo-icon">🩸</span>
+                <h1>Donare de Sânge</h1>
+                <p class="subtitle">Creează-ți contul</p>
+            </div>
+
+            <form id="registerForm" class="auth-form">
+                <h2>Înregistrare</h2>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="firstName">Prenume</label>
+                        <input 
+                            type="text" 
+                            id="firstName" 
+                            name="firstName" 
+                            placeholder="Prenume"
+                            required
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label for="lastName">Nume</label>
+                        <input 
+                            type="text" 
+                            id="lastName" 
+                            name="lastName" 
+                            placeholder="Nume"
+                            required
+                        >
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        name="email" 
+                        placeholder="exemplu@email.com"
+                        required
+                    >
+                    <span class="error-message" id="emailError"></span>
+                </div>
+
+                <div class="form-group">
+                    <label for="phone">Telefon</label>
+                    <input 
+                        type="tel" 
+                        id="phone" 
+                        name="phone" 
+                        placeholder="07XX XXX XXX"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="bloodType">Grupa sanguină</label>
+                    <select id="bloodType" name="bloodType" required>
+                        <option value="">Selectează grupa</option>
+                        <option value="A+">A+</option>
+                        <option value="A-">A-</option>
+                        <option value="B+">B+</option>
+                        <option value="B-">B-</option>
+                        <option value="AB+">AB+</option>
+                        <option value="AB-">AB-</option>
+                        <option value="O+">O+</option>
+                        <option value="O-">O-</option>
+                        <option value="unknown">Nu știu</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Parolă</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        placeholder="Minim 8 caractere"
+                        required
+                        minlength="8"
+                    >
+                    <span class="error-message" id="passwordError"></span>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmPassword">Confirmă parola</label>
+                    <input 
+                        type="password" 
+                        id="confirmPassword" 
+                        name="confirmPassword" 
+                        placeholder="Repetă parola"
+                        required
+                    >
+                    <span class="error-message" id="confirmPasswordError"></span>
+                </div>
+
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="terms" name="terms" required>
+                    <label for="terms">Accept <a href="#" target="_blank">termenii și condițiile</a></label>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Creează cont</button>
+                
+                <div class="form-footer">
+                    <p>Ai deja cont? <a href="index.html">Autentifică-te</a></p>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/utils.js"></script>
+    <script src="js/auth.js"></script>
+</body>
+</html>

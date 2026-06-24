@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Donare de Sânge - Programări</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="header-logo">
+                <span class="logo-icon">🩸</span>
+                <span>Donare de Sânge</span>
+            </div>
+            <nav class="header-nav">
+                <span class="user-greeting">Bună, <span id="userName">Utilizator</span>!</span>
+                <button id="logoutBtn" class="btn btn-outline">Deconectare</button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="dashboard-container">
+            
+            <!-- Secțiunea programări existente -->
+            <section class="section">
+                <h2>📅 Programările tale</h2>
+                <div id="userAppointments" class="appointments-list">
+                    <!-- Programările vor fi generate dinamic -->
+                    <div class="empty-state" id="noAppointments">
+                        <p>Nu ai nicio programare activă.</p>
+                        <p>Alege o dată și oră din calendarul de mai jos.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Secțiunea programare nouă -->
+            <section class="section">
+                <h2>➕ Programare nouă</h2>
+                
+                <div class="appointment-scheduler">
+                    <!-- Selectare centru -->
+                    <div class="form-group">
+                        <label for="centerSelect">Centru de donare</label>
+                        <select id="centerSelect" required>
+                            <option value="">Selectează centrul</option>
+                            <option value="center1">Centrul de Transfuzii București - Sector 1</option>
+                            <option value="center2">Centrul de Transfuzii București - Sector 3</option>
+                            <option value="center3">Spitalul Universitar de Urgență</option>
+                            <option value="center4">Institutul Clinic Fundeni</option>
+                        </select>
+                    </div>
+
+                    <!-- Calendar -->
+                    <div class="calendar-section">
+                        <label>Selectează data</label>
+                        <div class="calendar-navigation">
+                            <button type="button" id="prevMonth" class="btn btn-icon">◀</button>
+                            <span id="currentMonth">Mai 2026</span>
+                            <button type="button" id="nextMonth" class="btn btn-icon">▶</button>
+                        </div>
+                        <div class="calendar-grid" id="calendarGrid">
+                            <!-- Zilele vor fi generate dinamic -->
+                        </div>
+                    </div>
+
+                    <!-- Ore disponibile -->
+                    <div class="time-slots-section" id="timeSlotsSection" style="display: none;">
+                        <label>Ore disponibile pentru <span id="selectedDateDisplay"></span></label>
+                        <div class="time-slots-grid" id="timeSlotsGrid">
+                            <!-- Orele vor fi generate dinamic -->
+                        </div>
+                    </div>
+
+                    <!-- Buton confirmare -->
+                    <div class="confirm-section" id="confirmSection" style="display: none;">
+                        <div class="appointment-summary">
+                            <h3>Rezumat programare</h3>
+                            <p><strong>Centru:</strong> <span id="summaryCenter"></span></p>
+                            <p><strong>Data:</strong> <span id="summaryDate"></span></p>
+                            <p><strong>Ora:</strong> <span id="summaryTime"></span></p>
+                        </div>
+                        <button type="button" id="confirmAppointment" class="btn btn-primary btn-large">
+                            Confirmă programarea
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Informații utile -->
+            <section class="section info-section">
+                <h2>ℹ️ Informații utile</h2>
+                <div class="info-cards">
+                    <div class="info-card">
+                        <h3>Înainte de donare</h3>
+                        <ul>
+                            <li>Mâncați un mic dejun ușor</li>
+                            <li>Hidratați-vă corespunzător</li>
+                            <li>Evitați alimentele grase</li>
+                            <li>Dormiți suficient (min. 7 ore)</li>
+                        </ul>
+                    </div>
+                    <div class="info-card">
+                        <h3>Documente necesare</h3>
+                        <ul>
+                            <li>Carte de identitate</li>
+                            <li>Card de donator (dacă aveți)</li>
+                        </ul>
+                    </div>
+                    <div class="info-card">
+                        <h3>Condiții generale</h3>
+                        <ul>
+                            <li>Vârsta: 18-65 ani</li>
+                            <li>Greutate: minim 50 kg</li>
+                            <li>Stare de sănătate bună</li>
+                            <li>Min. 8 săptămâni de la ultima donare</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Modal notificări -->
+    <div class="modal" id="notificationModal">
+        <div class="modal-content">
+            <span class="modal-close" id="modalClose">&times;</span>
+            <div class="modal-body" id="modalBody">
+                <!-- Conținut generat dinamic -->
+            </div>
+        </div>
+    </div>
+
+    <script src="js/utils.js"></script>
+    <script src="js/appointments.js"></script>
+</body>
+</html>
