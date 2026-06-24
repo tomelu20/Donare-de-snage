@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .config import settings
-from .routers import auth, campaigns
+from config import settings
+from routers import auth, campaigns
 
 app = FastAPI(title="Donare Sange API")
 

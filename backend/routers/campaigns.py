@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
-from ..database import get_db
-from ..schemas import CampaignCreate, CampaignOut
-from ..models import Campaign  # Asigură-te că ai modelul Campaign în models.py
+from database import get_db                  # <-- Schimbat din ..database în database
+from schemas.schemas import CampaignCreate, CampaignOut  # <-- Schimbat din ..schemas în schemas.schemas
+from models import Campaign                  # <-- Schimbat din ..models în models 
 
 router = APIRouter(
     prefix="/campaigns",
