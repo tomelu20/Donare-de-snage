@@ -50,7 +50,7 @@ def create_appointment(appointment_data: AppointmentCreate, db: Session = Depend
             detail="Ne pare rău, acest interval orar s-a ocupat între timp!"
         )
 
-    # 3. INSERARE SQL: Dacă totul e liber, salvăm programarea în SSMS
+    # 3. INSERARE SQL MODIFICATĂ: Folosim mappings() pentru compatibilitate cu Pydantic
     insert_query = text("""
         INSERT INTO appointments (campaign_id, user_id, slot_time, status, created_at)
         OUTPUT INSERTED.id, INSERTED.campaign_id, INSERTED.user_id, INSERTED.slot_time, INSERTED.status, INSERTED.created_at
@@ -66,8 +66,8 @@ def create_appointment(appointment_data: AppointmentCreate, db: Session = Depend
     # Confirmăm modificările în baza de date
     db.commit()
     
-    # Preluăm rândul proaspăt inserat (datorită clauzei OUTPUT din SQL Server)
-    new_appointment = result.fetchone()
+    # MODIFICAREA CRUCIALĂ: Convertim rândul din SQL Server într-un dicționar mapat curat
+    new_appointment = result.mappings().first()
     
     return new_appointment
 
