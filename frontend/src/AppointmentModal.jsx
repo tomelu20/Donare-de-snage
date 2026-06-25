@@ -8,21 +8,20 @@ function AppointmentModal({ campaign, onClose, onRefresh }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Încărcăm sloturile de timp pentru campania selectată
-  useEffect(() => {
-    const fetchSlots = async () => {
-      try {
-        setLoading(true);
-        // Apelăm endpoint-ul din campaigns.py
-        const response = await axios.get(`http://127.0.0.1:8000/campaigns/${campaign.id}/slots`);
-        setSlots(response.data);
-      } catch (err) {
-        setError('Nu s-au putut încărca intervalele orare.');
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Funcție izolată pentru a putea reîncărca sloturile și după o programare reușită
+  const fetchSlots = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`http://127.0.0.1:8000/campaigns/${campaign.id}/slots`);
+      setSlots(response.data);
+    } catch (err) {
+      setError('Nu s-au putut încărca intervalele orare.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchSlots();
   }, [campaign.id]);
 
@@ -37,22 +36,21 @@ function AppointmentModal({ campaign, onClose, onRefresh }) {
     setSuccess('');
 
     try {
-      // Trimitem cererea conform schemei AppointmentCreate (campaign_id și slot_time)
       await axios.post('http://127.0.0.1:8000/appointments/', {
         campaign_id: campaign.id,
         slot_time: selectedSlot
       });
 
-      setSuccess('Programare confirmată cu succes!');
+      setSuccess(`Programare realizată cu succes pentru ora ${selectedSlot}!`);
+      setSelectedSlot(''); // Resetăm selecția curentă
       
-      // Reîmprospătăm datele după 1.5 secunde și închidem fereastra modală
-      setTimeout(() => {
-        onRefresh();
-        onClose();
-      }, 1500);
+      // 1. Actualizăm lista generală de campanii din spate
+      onRefresh(); 
+      
+      // 2. Reîncărcăm imediat sloturile în această fereastră pentru a reflecta noul număr de locuri rămase
+      await fetchSlots(); 
 
     } catch (err) {
-      // Prindem mesajul de eroare trimis de backend (ex: "Ne pare rău, acest interval orar s-a ocupat între timp!")
       setError(err.response?.data?.detail || 'A apărut o eroare la salvarea programării.');
     }
   };
@@ -71,7 +69,7 @@ function AppointmentModal({ campaign, onClose, onRefresh }) {
         {success && <p style={{ color: 'green', backgroundColor: '#e3ffe3', padding: '10px', borderRadius: '4px', fontSize: '14px' }}>{success}</p>}
 
         {loading ? (
-          <p style={{ textStyle: 'italic', color: '#666' }}>Se încarcă intervalele disponibile...</p>
+          <p style={{ fontStyle: 'italic', color: '#666' }}>Se încarcă intervalele disponibile...</p>
         ) : (
           <form onSubmit={handleConfirmAppointment}>
             <div style={{ marginBottom: '20px' }}>
@@ -113,7 +111,7 @@ function AppointmentModal({ campaign, onClose, onRefresh }) {
                 onClick={onClose} 
                 style={{ padding: '8px 15px', backgroundColor: '#fff', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer' }}
               >
-                Anulează
+                Închide fereastra
               </button>
               <button 
                 type="submit" 
