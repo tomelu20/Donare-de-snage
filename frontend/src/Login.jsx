@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
-function Login({ onSwitch }) {
+function Login({ onSwitch, onLoginSuccess }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -11,11 +11,19 @@ function Login({ onSwitch }) {
     setError('');
     
     try {
+      // Trimitem cererea către backend (corespunde schemei UserLogin)
       const response = await axios.post('http://127.0.0.1:8000/auth/login', {
         email: email,
         password: password
       });
-      alert('Logare reușită! Bine ai venit, ' + response.data.name);
+      
+      // 1. Prindem și salvăm datele utilizatorului (corespund schemei UserOut: id, name, email, role) în memoria browserului
+      localStorage.setItem('user_session', JSON.stringify(response.data));
+      
+      // 2. Anunțăm componenta părinte că logarea a avut succes pentru a schimba ecranul către Dashboard
+      if (onLoginSuccess) {
+        onLoginSuccess();
+      }
     } catch (err) {
       setError(err.response?.data?.detail || 'A apărut o eroare la logare.');
     }
