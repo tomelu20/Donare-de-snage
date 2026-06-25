@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import AppointmentModal from './AppointmentModal'; // Importăm modalul nou
+import AppointmentModal from './AppointmentModal'; 
 
 function Dashboard({ onLogout }) {
-  const savedUser = localStorage.getItem('user_session');
+  // Schimbat din localStorage în sessionStorage
+  const savedUser = sessionStorage.getItem('user_session');
   const user = savedUser ? JSON.parse(savedUser) : null;
 
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState('');
   
-  // Stări pentru gestionarea deschiderii modalului
   const [selectedCampaign, setSelectedCampaign] = useState(null);
 
   const fetchCampaigns = async () => {
@@ -30,15 +30,15 @@ function Dashboard({ onLogout }) {
   }, []);
 
   const handleLogoutClick = () => {
-    localStorage.removeItem('user_session');
+    // Schimbat din localStorage în sessionStorage
+    sessionStorage.removeItem('user_session');
     if (onLogout) {
       onLogout();
     }
   };
 
-  // Când dă click pe "Programează-te", stocăm campania pentru a deschide modalul
   const handleAction = (campaign) => {
-    if (user.role === 'admin') {
+    if (user && user.role === 'admin') {
       alert('Funcționalitate de administrare sloturi în lucru.');
     } else {
       setSelectedCampaign(campaign);
@@ -85,7 +85,6 @@ function Dashboard({ onLogout }) {
                   </p>
                 </div>
                 
-                {/* Trimitem întreg obiectul `campaign` către funcție */}
                 <button 
                   onClick={() => handleAction(campaign)}
                   style={{ padding: '8px 12px', backgroundColor: '#e63946', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
@@ -96,7 +95,6 @@ function Dashboard({ onLogout }) {
             ))}
           </div>
 
-          {/* AFIȘAREA FORMULARULUI MODAL DACĂ A FOST SELECTATĂ O CAMPANIE */}
           {selectedCampaign && (
             <AppointmentModal 
               campaign={selectedCampaign} 

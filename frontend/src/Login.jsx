@@ -11,16 +11,14 @@ function Login({ onSwitch, onLoginSuccess }) {
     setError('');
     
     try {
-      // Trimitem cererea către backend (corespunde schemei UserLogin)
       const response = await axios.post('http://127.0.0.1:8000/auth/login', {
         email: email,
         password: password
       });
       
-      // 1. Prindem și salvăm datele utilizatorului (corespund schemei UserOut: id, name, email, role) în memoria browserului
-      localStorage.setItem('user_session', JSON.stringify(response.data));
+      // Schimbat din localStorage în sessionStorage pentru securizarea sesiunii la închiderea tab-ului
+      sessionStorage.setItem('user_session', JSON.stringify(response.data));
       
-      // 2. Anunțăm componenta părinte că logarea a avut succes pentru a schimba ecranul către Dashboard
       if (onLoginSuccess) {
         onLoginSuccess();
       }

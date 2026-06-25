@@ -4,8 +4,8 @@ import Register from './Register';
 import Dashboard from './Dashboard';
 
 function App() {
-  // Verificăm dacă există deja o sesiune în browser pentru a seta ecranul de pornire implicit
-  const hasSession = localStorage.getItem('user_session') !== null;
+  // Schimbat din localStorage în sessionStorage pentru ștergerea sesiunii la închiderea tab-ului
+  const hasSession = sessionStorage.getItem('user_session') !== null;
   const [currentScreen, setCurrentScreen] = useState(hasSession ? 'dashboard' : 'login');
 
   return (
