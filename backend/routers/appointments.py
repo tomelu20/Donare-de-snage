@@ -18,24 +18,28 @@ router = APIRouter(
 def create_appointment(appointment_data: AppointmentCreate, db: Session = Depends(get_db)):
     
     # ------------------------------------------------------------------------
-    # 1. VERIFICARE UTILIZATOR: Să nu aibă deja o altă programare activă
+    # ACTUALIZAT: VERIFICARE UTILIZATOR - Maxim o programare per CAMPANIE
     # ------------------------------------------------------------------------
     user_check_query = text("""
         SELECT COUNT(id) AS existing_count 
         FROM appointments 
-        WHERE user_id = :user_id AND status IN ('confirmed', 'attended')
+        WHERE user_id = :user_id 
+          AND campaign_id = :camp_id 
+          AND status IN ('confirmed', 'attended')
     """)
-    user_check = db.execute(user_check_query, {"user_id": CURRENT_USER_ID}).fetchone()
+    user_check = db.execute(user_check_query, {
+        "user_id": CURRENT_USER_ID,
+        "camp_id": appointment_data.campaign_id
+    }).fetchone()
     
     if user_check.existing_count > 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Ai deja o programare activă în sistem! Nu poți rezerva mai multe sloturi."
+            detail="Ai deja o programare activă în această campanie! Te poți programa în alte campanii, dar doar o singură dată per locație."
         )
+    # ------------------------------------------------------------------------
 
-    # ------------------------------------------------------------------------
-    # 2. VERIFICARE CAMPANIE: Căutăm campania și capacitatea ei maximă pe slot
-    # ------------------------------------------------------------------------
+    # 1. VERIFICARE SQL: Căutăm campania și capacitatea ei maximă pe slot
     campaign_query = text("""
         SELECT capacity_per_slot, is_active 
         FROM campaigns 
@@ -48,9 +52,7 @@ def create_appointment(appointment_data: AppointmentCreate, db: Session = Depend
     if not campaign.is_active:
         raise HTTPException(status_code=400, detail="Această campanie nu mai este activă.")
 
-    # ------------------------------------------------------------------------
-    # 3. VERIFICARE CAPACITATE SLOT: Numărăm câte programări sunt deja pe acest slot
-    # ------------------------------------------------------------------------
+    # 2. VERIFICARE SQL: Numărăm câte programări active sunt deja pe acest slot
     count_query = text("""
         SELECT COUNT(id) AS booked 
         FROM appointments 
@@ -63,16 +65,13 @@ def create_appointment(appointment_data: AppointmentCreate, db: Session = Depend
         "slot_time": appointment_data.slot_time
     }).fetchone()
     
-    # Dacă s-a atins capacitatea maximă (ex: 2 locuri), blocăm rezervarea
     if booked_result.booked >= campaign.capacity_per_slot:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Ne pare rău, acest interval orar s-a ocupat între timp!"
         )
 
-    # ------------------------------------------------------------------------
-    # 4. INSERARE IN BAZA DE DATE: Adăugăm programarea nouă
-    # ------------------------------------------------------------------------
+    # 3. INSERARE SQL
     insert_query = text("""
         INSERT INTO appointments (campaign_id, user_id, slot_time, status, created_at)
         OUTPUT INSERTED.id, INSERTED.campaign_id, INSERTED.user_id, INSERTED.slot_time, INSERTED.status, INSERTED.created_at
@@ -85,15 +84,9 @@ def create_appointment(appointment_data: AppointmentCreate, db: Session = Depend
         "slot_time": appointment_data.slot_time
     })
     
-    # Citim rândul extras prin OUTPUT înainte de a închide cursorul cu commit()
     row = result.mappings().first()
-    
-    # Confirmăm modificările definitiv în SQL Server
     db.commit()
     
-    # ------------------------------------------------------------------------
-    # 5. SERIALIZARE: Construim dicționarul curat, transformând timpul în string text
-    # ------------------------------------------------------------------------
     new_appointment = {
         "id": row["id"],
         "campaign_id": row["campaign_id"],
@@ -123,3 +116,37 @@ def cancel_appointment(id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Programarea nu a fost găsită.")
         
     return {"message": "Programarea a fost anulată cu succes."}
+
+@router.get("/me", response_model=List[AppointmentOut])
+def get_my_appointments(db: Session = Depends(get_db)):
+    # Returnează doar programările utilizatorului logat (CURRENT_USER_ID) care nu sunt anulate
+    query = text("""
+        SELECT id, campaign_id, user_id, slot_time, status, created_at 
+        FROM appointments 
+        WHERE user_id = :user_id AND status != 'cancelled'
+        ORDER BY created_at DESC
+    """)
+    result = db.execute(query, {"user_id": CURRENT_USER_ID}).mappings().all()
+    return result
+
+@router.get("/all", status_code=status.HTTP_200_OK)
+def get_all_appointments_for_admin(db: Session = Depends(get_db)):
+    # Jointură între programări, utilizatori și campanii pentru ca Adminul să vadă detalii complete
+    query = text("""
+        SELECT 
+            a.id AS appointment_id,
+            a.slot_time,
+            a.status,
+            u.name AS donor_name,
+            u.surname AS donor_surname,
+            u.phone AS donor_phone,
+            c.title AS campaign_title,
+            c.date AS campaign_date
+        FROM appointments a
+        JOIN users u ON a.user_id = u.id
+        JOIN campaigns c ON a.campaign_id = c.id
+        WHERE a.status != 'cancelled'
+        ORDER BY c.date ASC, a.slot_time ASC
+    """)
+    result = db.execute(query).mappings().all()
+    return result
