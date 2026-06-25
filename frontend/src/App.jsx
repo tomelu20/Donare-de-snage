@@ -1,10 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
+import Login from './Login';
+import Register from './Register';
 
 function App() {
+  const [currentScreen, setCurrentScreen] = useState('login'); // poate fi 'login' sau 'register'
+
   return (
-    <div style={{ textAlign: 'center', marginTop: '100px', fontFamily: 'sans-serif' }}>
-      <h1 style={{ color: '#e63946' }}>🩸 Sistem Programări Donare Sânge</h1>
-      <p>Frontend-ul a fost reinstalat complet și funcționează perfect!</p>
+    <div>
+      {currentScreen === 'login' ? (
+        <Login onSwitch={() => setCurrentScreen('register')} />
+      ) : (
+        <Register onSwitch={() => setCurrentScreen('login')} />
+      )}
     </div>
   );
 }
