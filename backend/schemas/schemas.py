@@ -50,6 +50,7 @@ class CampaignOut(BaseModel):
 class AppointmentCreate(BaseModel):
     campaign_id: int
     slot_time: time
+    user_id: int
 
 class AppointmentOut(BaseModel):
     id: int

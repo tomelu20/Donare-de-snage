@@ -6,9 +6,6 @@ from typing import List
 from database import get_db
 from schemas.schemas import AppointmentCreate, AppointmentOut
 
-# Pentru MVP, folosim un user_id fix (1). Ulterior îl legăm de Token-ul JWT.
-CURRENT_USER_ID = 1
-
 router = APIRouter(
     prefix="/appointments",
     tags=["Appointments"]
@@ -17,8 +14,11 @@ router = APIRouter(
 @router.post("/", response_model=AppointmentOut, status_code=status.HTTP_201_CREATED)
 def create_appointment(appointment_data: AppointmentCreate, db: Session = Depends(get_db)):
     
+    # Preluăm user_id dinamic din corpul cererii (trimis de Frontend)
+    current_user_id = appointment_data.user_id
+
     # ------------------------------------------------------------------------
-    # ACTUALIZAT: VERIFICARE UTILIZATOR - Maxim o programare per CAMPANIE
+    # VERIFICARE UTILIZATOR - Maxim o programare per CAMPANIE
     # ------------------------------------------------------------------------
     user_check_query = text("""
         SELECT COUNT(id) AS existing_count 
@@ -28,7 +28,7 @@ def create_appointment(appointment_data: AppointmentCreate, db: Session = Depend
           AND status IN ('confirmed', 'attended')
     """)
     user_check = db.execute(user_check_query, {
-        "user_id": CURRENT_USER_ID,
+        "user_id": current_user_id,
         "camp_id": appointment_data.campaign_id
     }).fetchone()
     
@@ -71,7 +71,7 @@ def create_appointment(appointment_data: AppointmentCreate, db: Session = Depend
             detail="Ne pare rău, acest interval orar s-a ocupat între timp!"
         )
 
-    # 3. INSERARE SQL
+    # 3. INSERARE SQL folosind user_id-ul dinamic primit de la utilizatorul curent
     insert_query = text("""
         INSERT INTO appointments (campaign_id, user_id, slot_time, status, created_at)
         OUTPUT INSERTED.id, INSERTED.campaign_id, INSERTED.user_id, INSERTED.slot_time, INSERTED.status, INSERTED.created_at
@@ -80,7 +80,7 @@ def create_appointment(appointment_data: AppointmentCreate, db: Session = Depend
     
     result = db.execute(insert_query, {
         "camp_id": appointment_data.campaign_id,
-        "user_id": CURRENT_USER_ID,
+        "user_id": current_user_id,
         "slot_time": appointment_data.slot_time
     })
     
@@ -111,27 +111,25 @@ def cancel_appointment(id: int, db: Session = Depends(get_db)):
     result = db.execute(cancel_query, {"app_id": id})
     db.commit()
     
-    # rowcount ne spune câte rânduri au fost afectate de UPDATE
     if result.rowcount == 0:
         raise HTTPException(status_code=404, detail="Programarea nu a fost găsită.")
         
     return {"message": "Programarea a fost anulată cu succes."}
 
 @router.get("/me", response_model=List[AppointmentOut])
-def get_my_appointments(db: Session = Depends(get_db)):
-    # Returnează doar programările utilizatorului logat (CURRENT_USER_ID) care nu sunt anulate
+def get_my_appointments(user_id: int, db: Session = Depends(get_db)):
+    # Filtrează programările specifice doar utilizatorului dat ca parametru URL
     query = text("""
         SELECT id, campaign_id, user_id, slot_time, status, created_at 
         FROM appointments 
         WHERE user_id = :user_id AND status != 'cancelled'
         ORDER BY created_at DESC
     """)
-    result = db.execute(query, {"user_id": CURRENT_USER_ID}).mappings().all()
+    result = db.execute(query, {"user_id": user_id}).mappings().all()
     return result
 
 @router.get("/all", status_code=status.HTTP_200_OK)
 def get_all_appointments_for_admin(db: Session = Depends(get_db)):
-    # Jointură între programări, utilizatori și campanii pentru ca Adminul să vadă detalii complete
     query = text("""
         SELECT 
             a.id AS appointment_id,

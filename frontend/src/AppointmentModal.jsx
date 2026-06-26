@@ -8,7 +8,6 @@ function AppointmentModal({ campaign, onClose, onRefresh }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Funcție izolată pentru a putea reîncărca sloturile și după o programare reușită
   const fetchSlots = async () => {
     try {
       setLoading(true);
@@ -35,20 +34,33 @@ function AppointmentModal({ campaign, onClose, onRefresh }) {
     setError('');
     setSuccess('');
 
+    // Extragem user-ul curent din sessionStorage pentru a-i lua ID-ul
+    const savedUser = sessionStorage.getItem('user_session');
+    const user = savedUser ? JSON.parse(savedUser) : null;
+
+    if (!user) {
+      setError('Sesiunea a expirat. Te rugăm să reîntri în cont.');
+      return;
+    }
+
     try {
+      // MODIFICAT: Trimitem și user_id-ul salvat în sesiune către backend!
       await axios.post('http://127.0.0.1:8000/appointments/', {
         campaign_id: campaign.id,
-        slot_time: selectedSlot
+        slot_time: selectedSlot,
+        user_id: user.id 
       });
 
-      setSuccess(`Programare realizată cu succes pentru ora ${selectedSlot}!`);
-      setSelectedSlot(''); // Resetăm selecția curentă
+      setSuccess('Programare înregistrată cu succes!');
+      setSelectedSlot('');
       
-      // 1. Actualizăm lista generală de campanii din spate
-      onRefresh(); 
-      
-      // 2. Reîncărcăm imediat sloturile în această fereastră pentru a reflecta noul număr de locuri rămase
-      await fetchSlots(); 
+      // Reîmprospătăm interfața din Dashboard
+      if (onRefresh) onRefresh();
+
+      // Închidem modalul după 2 secunde
+      setTimeout(() => {
+        onClose();
+      }, 2000);
 
     } catch (err) {
       setError(err.response?.data?.detail || 'A apărut o eroare la salvarea programării.');
@@ -56,47 +68,53 @@ function AppointmentModal({ campaign, onClose, onRefresh }) {
   };
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontFamily: 'sans-serif', zIndex: 1000 }}>
-      <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', width: '100%', maxWidth: '450px', boxSizing: 'border-box' }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+      <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', maxWidth: '500px', width: '90%', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 4px 20px rgba(0,0,0,0.2)', fontFamily: 'sans-serif' }}>
         
-        <h3 style={{ color: '#e63946', marginTop: 0, marginBottom: '10px' }}>Programare: {campaign.title}</h3>
-        <p style={{ fontSize: '14px', color: '#555', margin: '0 0 20px 0' }}>
-          <strong>Data:</strong> {campaign.date} <br />
-          <strong>Locație:</strong> {campaign.location_name}
+        <h3 style={{ marginTop: 0, color: '#e63946', borderBottom: '2px solid #f1f3f5', paddingBottom: '10px' }}>
+          Rezervare Interval Orar
+        </h3>
+        <p style={{ fontSize: '15px', color: '#333', margin: '0 0 15px 0' }}>
+          Alegeți ora dorită pentru campania: <strong style={{ color: '#e63946' }}>{campaign.title}</strong>
         </p>
 
         {error && <p style={{ color: 'red', backgroundColor: '#ffe3e3', padding: '10px', borderRadius: '4px', fontSize: '14px' }}>{error}</p>}
-        {success && <p style={{ color: 'green', backgroundColor: '#e3ffe3', padding: '10px', borderRadius: '4px', fontSize: '14px' }}>{success}</p>}
+        {success && <p style={{ color: 'green', backgroundColor: '#e3ffe3', padding: '10px', borderRadius: '4px', fontSize: '14px', fontWeight: 'bold' }}>{success}</p>}
 
         {loading ? (
-          <p style={{ fontStyle: 'italic', color: '#666' }}>Se încarcă intervalele disponibile...</p>
+          <p style={{ textAlign: 'center', color: '#666', padding: '20px' }}>Se generează intervalele libere...</p>
         ) : (
           <form onSubmit={handleConfirmAppointment}>
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Selectează Ora:</label>
+            <div style={{ marginBottom: '25px' }}>
+              <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '10px', color: '#555' }}>Intervale orare valabile:</label>
               
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', maxHeight: '200px', overflowY: 'auto', padding: '5px', border: '1px solid #ddd', borderRadius: '4px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '10px' }}>
                 {slots.map((slot) => {
-                  const isDisabled = !slot.is_available;
+                  const isDisabled = slot.available_slots <= 0;
                   return (
                     <button
                       key={slot.time}
                       type="button"
                       disabled={isDisabled}
-                      onClick={() => setSelectedSlot(slot.time)}
+                      onClick={() => {
+                        if (!isDisabled) {
+                          setSelectedSlot(slot.time);
+                          setError('');
+                        }
+                      }}
                       style={{
                         padding: '10px 5px',
-                        borderRadius: '4px',
+                        borderRadius: '6px',
                         border: selectedSlot === slot.time ? '2px solid #e63946' : '1px solid #ccc',
-                        backgroundColor: isDisabled ? '#eee' : selectedSlot === slot.time ? '#ffeef0' : 'white',
+                        backgroundColor: isDisabled ? '#f1f3f5' : selectedSlot === slot.time ? '#ffebecc' : '#fff',
                         color: isDisabled ? '#999' : selectedSlot === slot.time ? '#e63946' : '#333',
                         cursor: isDisabled ? 'not-allowed' : 'pointer',
                         fontWeight: selectedSlot === slot.time ? 'bold' : 'normal',
                         fontSize: '13px'
                       }}
                     >
-                      {slot.time}
-                      <span style={{ display: 'block', fontSize: '10px', color: isDisabled ? '#999' : '#666' }}>
+                      {slot.time.substring(0, 5)}
+                      <span style={{ display: 'block', fontSize: '10px', color: isDisabled ? '#999' : '#666', marginTop: '2px' }}>
                         ({slot.available_slots} locuri)
                       </span>
                     </button>
@@ -105,7 +123,7 @@ function AppointmentModal({ campaign, onClose, onRefresh }) {
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', borderTop: '1px solid #eee', paddingTop: '15px' }}>
               <button 
                 type="button" 
                 onClick={onClose} 

@@ -11,7 +11,7 @@ router = APIRouter(
     tags=["Eligibility Questionnaire"]
 )
 
-# 1. GET: Trimite întrebările către frontend pentru a genera formularul
+# 1. GET: Trimite întrebările către frontend
 @router.get("/questions", response_model=List[QuestionOut])
 def get_questions(db: Session = Depends(get_db)):
     query = text("""
@@ -23,16 +23,16 @@ def get_questions(db: Session = Depends(get_db)):
     return result
 
 
-# 2. POST: Salvează programarea ȘI răspunsurile la chestionar dintr-un singur foc
+# 2. POST: Salvează programarea ȘI răspunsurile utilizatorului dinamic
 @router.post("/submit", response_model=AppointmentOut, status_code=status.HTTP_201_CREATED)
 def submit_appointment_with_answers(
     payload: AppointmentWithAnswersCreate, 
     db: Session = Depends(get_db)
 ):
-    # Folosim un user_id fix (1) pentru MVP, la fel ca la appointments
-    CURRENT_USER_ID = 1
+    # Preluăm user_id-ul corect din sub-obiectul appointment primit din Frontend
+    current_user_id = payload.appointment.user_id
     
-    # --- ETAPA A: Verificăm capacitatea slotului (la fel ca la pasul 2) ---
+    # --- ETAPA A: Verificăm capacitatea slotului ---
     campaign_query = text("SELECT capacity_per_slot, is_active FROM campaigns WHERE id = :camp_id")
     campaign = db.execute(campaign_query, {"camp_id": payload.appointment.campaign_id}).fetchone()
     
@@ -51,7 +51,7 @@ def submit_appointment_with_answers(
     if booked_result.booked >= campaign.capacity_per_slot:
         raise HTTPException(status_code=400, detail="Slotul s-a ocupat între timp.")
 
-    # --- ETAPA B: Inserăm programarea și obținem ID-ul ei ---
+    # --- ETAPA B: Inserăm programarea cu user_id-ul dinamic ---
     insert_app_query = text("""
         INSERT INTO appointments (campaign_id, user_id, slot_time, status, created_at)
         OUTPUT INSERTED.id, INSERTED.campaign_id, INSERTED.user_id, INSERTED.slot_time, INSERTED.status, INSERTED.created_at
@@ -60,14 +60,14 @@ def submit_appointment_with_answers(
     
     app_result = db.execute(insert_app_query, {
         "camp_id": payload.appointment.campaign_id,
-        "user_id": CURRENT_USER_ID,
+        "user_id": current_user_id,
         "slot_time": payload.appointment.slot_time
     })
     
     new_appointment = app_result.fetchone()
     appointment_id = new_appointment.id
 
-    # --- ETAPA C: Inserăm automat toate răspunsurile în baza de date ---
+    # --- ETAPA C: Inserăm răspunsurile asociate corect ---
     insert_answer_query = text("""
         INSERT INTO eligibility_answers (appointment_id, question_id, answer_text)
         VALUES (:app_id, :quest_id, :ans_text)
@@ -80,7 +80,6 @@ def submit_appointment_with_answers(
             "ans_text": answer.answer_text
         })
     
-    # Salvăm totul în SSMS (atât programarea, cât și răspunsurile)
     db.commit()
     
     return new_appointment
