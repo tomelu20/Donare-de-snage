@@ -34,12 +34,12 @@ function Dashboard({ onLogout }) {
       const campaignsResponse = await axios.get('http://127.0.0.1:8000/campaigns/');
       setCampaigns(campaignsResponse.data);
 
-      // 2. MODIFICAT: Încărcăm programările mele TRANSMITÂND user_id ca parametru query
+      // 2. Încărcăm programările mele transmițând user_id ca parametru query
       const myAppsResponse = await axios.get(`http://127.0.0.1:8000/appointments/me?user_id=${user.id}`);
       setMyAppointments(myAppsResponse.data);
 
       // 3. Dacă e admin, încărcăm absolut toate programările din sistem
-      if (user.role === 'admin') {
+      if (user.role === 'admin' || user.role === 'ADMIN') {
         const adminAppsResponse = await axios.get('http://127.0.0.1:8000/appointments/all');
         setAdminAppointments(adminAppsResponse.data);
       }
@@ -55,20 +55,22 @@ function Dashboard({ onLogout }) {
     fetchData();
   }, []);
 
-  const handleCancelClick = (app) => {
-    setAppointmentToCancel(app);
+  // Funcție unificată pentru deschiderea modalului de confirmare (atât pt user, cât și pt admin)
+  const handleCancelClick = (appId) => {
+    setAppointmentToCancel(appId);
   };
 
   const executeCancel = async () => {
     if (!appointmentToCancel) return;
     try {
       setApiError('');
-      await axios.put(`http://127.0.0.1:8000/appointments/${appointmentToCancel.id}/cancel`);
+      // Trimite ID-ul programării către ruta de anulare din backend
+      await axios.put(`http://127.0.0.1:8000/appointments/${appointmentToCancel}/cancel`);
       
       setSuccessNotification('Programarea a fost anulată cu succes.');
       setAppointmentToCancel(null);
       
-      // Reîmprospătăm datele
+      // Reîmprospătăm toate listele de pe ecran
       fetchData();
 
       setTimeout(() => {
@@ -110,11 +112,11 @@ function Dashboard({ onLogout }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <div style={{ textAlign: 'right' }}>
             <span style={{ display: 'block', fontWeight: 'bold', color: '#333' }}>{user.name} {user.surname}</span>
-            <span style={{ fontSize: '12px', color: '#666', textTransform: 'uppercase', tracking: '1px' }}>
-              Rol: {user.role === 'admin' ? 'Administrator' : 'Donator'}
+            <span style={{ fontSize: '12px', color: '#666', textTransform: 'uppercase', letterSpacing: '1px' }}>
+              Rol: {(user.role === 'admin' || user.role === 'ADMIN') ? 'Administrator' : 'Donator'}
             </span>
           </div>
-          <button onClick={handleLocalLogout} style={{ padding: '8px 16px', backgroundColor: '#fff', border: '1px solid #dc3545', color: '#dc3545', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}>
+          <button onClick={handleLocalLogout} style={{ padding: '8px 16px', backgroundColor: '#fff', border: '1px solid #dc3545', color: '#dc3545', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
             Deconectare
           </button>
         </div>
@@ -124,12 +126,12 @@ function Dashboard({ onLogout }) {
         
         {/* Notificări de eroare / succes globale */}
         {apiError && (
-          <div style={{ backgroundColor: '#ffe3e3', color: '#dc3545', padding: '15px', borderRadius: '6px', marginBottom: '20px', borderLeft: '5px solid #dc3545', fontWeight: '5px' }}>
+          <div style={{ backgroundColor: '#ffe3e3', color: '#dc3545', padding: '15px', borderRadius: '6px', marginBottom: '20px', borderLeft: '5px solid #dc3545', fontWeight: 'bold' }}>
             ❌ {apiError}
           </div>
         )}
         {successNotification && (
-          <div style={{ backgroundColor: '#e3ffe3', color: '#198754', padding: '15px', borderRadius: '6px', marginBottom: '20px', borderLeft: '5px solid #198754', fontWeight: '5px' }}>
+          <div style={{ backgroundColor: '#e3ffe3', color: '#198754', padding: '15px', borderRadius: '6px', marginBottom: '20px', borderLeft: '5px solid #198754', fontWeight: 'bold' }}>
             ✔️ {successNotification}
           </div>
         )}
@@ -141,8 +143,8 @@ function Dashboard({ onLogout }) {
             {/* ========================================== */}
             {/* PANOU ADMIN: Vizualizare Globală Programări */}
             {/* ========================================== */}
-            {user.role === 'admin' && (
-              <section style={{ backgroundColor: '#white', padding: '25px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: '40px', border: '1px solid #e1e4e8' }}>
+            {(user.role === 'admin' || user.role === 'ADMIN') && (
+              <section style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: '40px', border: '1px solid #e1e4e8' }}>
                 <h3 style={{ margin: '0 0 20px 0', color: '#2b2d42', borderBottom: '2px solid #f1f3f5', paddingBottom: '10px' }}>
                   📋 Management Centralizat Programări (Vizualizare Admin)
                 </h3>
@@ -159,6 +161,7 @@ function Dashboard({ onLogout }) {
                           <th style={{ padding: '12px' }}>Dată Campanie</th>
                           <th style={{ padding: '12px' }}>Interval Orar</th>
                           <th style={{ padding: '12px' }}>Status</th>
+                          <th style={{ padding: '12px', textAlign: 'center' }}>Acțiuni Admin</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -168,7 +171,6 @@ function Dashboard({ onLogout }) {
                             <td style={{ padding: '12px' }}>{app.donor_phone}</td>
                             <td style={{ padding: '12px' }}>
                               <span style={{ fontWeight: '500' }}>{app.campaign_title}</span>
-                              <span style={{ display: 'block', fontSize: '12px', color: '#666' }}>{app.location_name}</span>
                             </td>
                             <td style={{ padding: '12px' }}>{formatRomanianDate(app.campaign_date)}</td>
                             <td style={{ padding: '12px', color: '#e63946', fontWeight: 'bold' }}>{app.slot_time.substring(0, 5)}</td>
@@ -176,6 +178,16 @@ function Dashboard({ onLogout }) {
                               <span style={{ padding: '4px 8px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold', backgroundColor: app.status === 'confirmed' ? '#e3ffe3' : '#fff3cd', color: app.status === 'confirmed' ? '#198754' : '#856404' }}>
                                 {app.status === 'confirmed' ? 'Confirmată' : app.status}
                               </span>
+                            </td>
+                            <td style={{ padding: '12px', textAlign: 'center' }}>
+                              <button 
+                                onClick={() => handleCancelClick(app.appointment_id)}
+                                style={{ padding: '6px 12px', backgroundColor: '#fff', border: '1px solid #dc3545', color: '#dc3545', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', transition: 'all 0.2s' }}
+                                onMouseEnter={(e) => { e.target.style.backgroundColor = '#dc3545'; e.target.style.color = '#fff'; }}
+                                onMouseLeave={(e) => { e.target.style.backgroundColor = '#fff'; e.target.style.color = '#dc3545'; }}
+                              >
+                                Anulează Programarea
+                              </button>
                             </td>
                           </tr>
                         ))}
@@ -187,7 +199,7 @@ function Dashboard({ onLogout }) {
             )}
 
             {/* GRID PRINCIPAL */}
-            <div style={{ display: 'grid', gridTemplateColumns: user.role === 'admin' ? '1fr' : '2fr 1fr', gap: '30px', alignItems: 'start' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: (user.role === 'admin' || user.role === 'ADMIN') ? '1fr' : '2fr 1fr', gap: '30px', alignItems: 'start' }}>
               
               {/* Secțiune Campanii Active */}
               <main style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid #e1e4e8' }}>
@@ -199,7 +211,7 @@ function Dashboard({ onLogout }) {
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
                     {campaigns.map((camp) => (
-                      <div key={camp.id} style={{ border: '1px solid #e1e4e8', borderRadius: '6px', padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', transition: 'box-shadow 0.2s' }}>
+                      <div key={camp.id} style={{ border: '1px solid #e1e4e8', borderRadius: '6px', padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff' }}>
                         <div>
                           <h4 style={{ margin: '0 0 8px 0', color: '#e63946', fontSize: '18px' }}>{camp.title}</h4>
                           <p style={{ margin: '0 0 5px 0', fontSize: '14px', color: '#333' }}><strong>Centru/Locație:</strong> {camp.location_name}</p>
@@ -218,40 +230,42 @@ function Dashboard({ onLogout }) {
                 )}
               </main>
 
-              {/* Secțiune Istoric Programări Personale */}
-              <aside style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid #e1e4e8' }}>
-                <h3 style={{ margin: '0 0 20px 0', color: '#2b2d42', borderBottom: '2px solid #f1f3f5', paddingBottom: '10px' }}>
-                  🩸 Programările Mele
-                </h3>
-                {myAppointments.length === 0 ? (
-                  <p style={{ color: '#666', fontStyle: 'italic', fontSize: '14px' }}>Nu aveți nicio programare activă rezervată.</p>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                    {myAppointments.map((app) => {
-                      const associatedCamp = campaigns.find(c => c.id === app.campaign_id);
-                      return (
-                        <div key={app.id} style={{ border: '1px solid #e1e4e8', borderRadius: '6px', padding: '15px', backgroundColor: '#fafafa' }}>
-                          <h4 style={{ margin: '0 0 5px 0', color: '#333', fontSize: '15px' }}>
-                            {associatedCamp ? associatedCamp.title : `Campanie (ID: ${app.campaign_id})`}
-                          </h4>
-                          <p style={{ margin: '0 0 10px 0', fontSize: '13px', color: '#666' }}>
-                            📍 {associatedCamp ? associatedCamp.location_name : 'Locație indisponibilă'}
-                          </p>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px' }}>
-                            <div>
-                              <span style={{ display: 'block' }}>📅 {associatedCamp ? formatRomanianDate(associatedCamp.date) : 'N/A'}</span>
-                              <span style={{ display: 'block', fontWeight: 'bold', color: '#e63946', marginTop: '2px' }}>🕒 Ora: {app.slot_time.substring(0, 5)}</span>
+              {/* Secțiune Istoric Programări Personale (Ascunsă sau secundară pentru Admin dacă vrea să se programeze singur) */}
+              {!(user.role === 'admin' || user.role === 'ADMIN') && (
+                <aside style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid #e1e4e8' }}>
+                  <h3 style={{ margin: '0 0 20px 0', color: '#2b2d42', borderBottom: '2px solid #f1f3f5', paddingBottom: '10px' }}>
+                    🩸 Programările Mele
+                  </h3>
+                  {myAppointments.length === 0 ? (
+                    <p style={{ color: '#666', fontStyle: 'italic', fontSize: '14px' }}>Nu aveți nicio programare activă rezervată.</p>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                      {myAppointments.map((app) => {
+                        const associatedCamp = campaigns.find(c => c.id === app.campaign_id);
+                        return (
+                          <div key={app.id} style={{ border: '1px solid #e1e4e8', borderRadius: '6px', padding: '15px', backgroundColor: '#fafafa' }}>
+                            <h4 style={{ margin: '0 0 5px 0', color: '#333', fontSize: '15px' }}>
+                              {associatedCamp ? associatedCamp.title : `Campanie (ID: ${app.campaign_id})`}
+                            </h4>
+                            <p style={{ margin: '0 0 10px 0', fontSize: '13px', color: '#666' }}>
+                              📍 {associatedCamp ? associatedCamp.location_name : 'Locație indisponibilă'}
+                            </p>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px' }}>
+                              <div>
+                                <span>📅 {associatedCamp ? formatRomanianDate(associatedCamp.date) : 'N/A'}</span>
+                                <span style={{ display: 'block', fontWeight: 'bold', color: '#e63946', marginTop: '2px' }}>🕒 Ora: {app.slot_time.substring(0, 5)}</span>
+                              </div>
+                              <button onClick={() => handleCancelClick(app.id)} style={{ padding: '5px 10px', backgroundColor: '#fff', border: '1px solid #dc3545', color: '#dc3545', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: '500' }}>
+                                Anulează
+                              </button>
                             </div>
-                            <button onClick={() => handleCancelClick(app)} style={{ padding: '5px 10px', backgroundColor: '#fff', border: '1px solid #dc3545', color: '#dc3545', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: '500' }}>
-                              Anulează
-                            </button>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </aside>
+                        );
+                      })}
+                    </div>
+                  )}
+                </aside>
+              )}
 
             </div>
           </>
@@ -267,12 +281,12 @@ function Dashboard({ onLogout }) {
         />
       )}
 
-      {/* POPUP CONFIRMARE ANULARE */}
+      {/* POPUP CONFIRMARE ANULARE (Comun pentru Admin și Utilizator) */}
       {appointmentToCancel && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1500 }}>
           <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', maxWidth: '400px', width: '90%', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.15)' }}>
             <h4 style={{ margin: '0 0 10px 0', color: '#333' }}>Confirmare Anulare</h4>
-            <p style={{ color: '#666', fontSize: '15px', marginBottom: '20px' }}>Ești sigur că vrei să anulezi această programare?</p>
+            <p style={{ color: '#666', fontSize: '15px', marginBottom: '20px' }}>Sigur doriți anularea definitivă a acestei programări?</p>
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
               <button onClick={() => setAppointmentToCancel(null)} style={{ padding: '8px 16px', backgroundColor: '#fff', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer' }}>
                 Renunță
