@@ -20,6 +20,7 @@ function App() {
       {currentScreen === 'register' && (
         <Register 
           onSwitch={() => setCurrentScreen('login')} 
+          onRegisterSuccess={() => setCurrentScreen('dashboard')}
         />
       )}
       
