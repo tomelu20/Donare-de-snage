@@ -42,11 +42,9 @@ function Register({ onSwitch, onRegisterSuccess }) {
       setPassword('');
       setBloodGroup('');
 
-      setTimeout(() => {
-        if (onRegisterSuccess) {
-          onRegisterSuccess();
-        }
-      }, 5000);
+      if (onRegisterSuccess) {
+        onRegisterSuccess();
+      }
 
     } catch (err) {
       setError(err.response?.data?.detail || 'A apărut o eroare la înregistrare.');

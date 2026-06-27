@@ -21,6 +21,7 @@ function Dashboard({ onLogout }) {
   const [newCampTitle, setNewCampTitle] = useState('');
   const [newCampLocation, setNewCampLocation] = useState('');
   const [newCampAddress, setNewCampAddress] = useState('');
+  // Schimbat în string gol pentru formatul ZZ-LL-AAAA manual sau mască text
   const [newCampDate, setNewCampDate] = useState('');
   const [newCampStartTime, setNewCampStartTime] = useState('08:30');
   const [newCampEndTime, setNewCampEndTime] = useState('13:00');
@@ -32,6 +33,13 @@ function Dashboard({ onLogout }) {
     const parts = dateString.split('-');
     if (parts.length !== 3) return dateString;
     return `${parts[2]}-${parts[1]}-${parts[0]}`; 
+  };
+
+  // Convertă formatul românesc (ZZ-LL-AAAA) în formatul bazei de date (AAAA-LL-ZZ)
+  const convertToDbDate = (roDate) => {
+    const parts = roDate.split('-');
+    if (parts.length !== 3) return roDate;
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
   };
 
   const fetchData = async () => {
@@ -81,7 +89,6 @@ function Dashboard({ onLogout }) {
     }
   };
 
-  // Funcție Admin: Marchează Prezent (Attended)
   const handleMarkAttended = async (appId) => {
     try {
       setApiError('');
@@ -94,7 +101,6 @@ function Dashboard({ onLogout }) {
     }
   };
 
-  // Funcție Admin: Marchează Absent (No Show)
   const handleMarkNoShow = async (appId) => {
     try {
       setApiError('');
@@ -107,16 +113,25 @@ function Dashboard({ onLogout }) {
     }
   };
 
-  // Funcție Admin: Trimitere formular campanie nouă
   const handleCreateCampaign = async (e) => {
     e.preventDefault();
+    
+    // Validare simplă pentru formatul românesc corect introdus
+    const dateRegex = /^\d{2}-\d{2}-\d{4}$/;
+    if (!dateRegex.test(newCampDate)) {
+      setApiError('Vă rugăm să introduceți data ex: 25-12-2026');
+      return;
+    }
+
     try {
       setApiError('');
+      const dbDate = convertToDbDate(newCampDate);
+
       await axios.post('http://127.0.0.1:8000/campaigns/', {
         title: newCampTitle,
         location_name: newCampLocation,
         address: newCampAddress,
-        date: newCampDate,
+        date: dbDate,
         start_time: newCampStartTime + ':00',
         end_time: newCampEndTime + ':00',
         slot_duration: parseInt(newCampSlotDuration),
@@ -125,13 +140,12 @@ function Dashboard({ onLogout }) {
 
       setSuccessNotification('Campania nouă a fost creată și publicată cu succes!');
       
-      // Resetare câmpuri formular
       setNewCampTitle('');
       setNewCampLocation('');
       setNewCampAddress('');
       setNewCampDate('');
       
-      fetchData(); // Reîncărcăm lista de campanii active
+      fetchData(); 
       setTimeout(() => setSuccessNotification(''), 4000);
     } catch (err) {
       setApiError(err.response?.data?.detail || 'Nu s-a putut crea campania. Verificați datele introduse.');
@@ -156,7 +170,6 @@ function Dashboard({ onLogout }) {
 
   return (
     <div style={{ fontFamily: 'sans-serif', backgroundColor: '#f8f9fa', minHeight: '100vh', paddingBottom: '50px' }}>
-      {/* Top Navigation Bar */}
       <nav style={{ backgroundColor: '#fff', padding: '15px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.08)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span style={{ fontSize: '24px' }}>🩸</span>
@@ -184,9 +197,6 @@ function Dashboard({ onLogout }) {
           <div style={{ textAlign: 'center', padding: '50px', fontSize: '18px', color: '#666' }}>Se încarcă datele panoului...</div>
         ) : (
           <>
-            {/* ========================================== */}
-            {/* PANOU ADMIN: MANAGEMENT PROGRAMĂRI GLOBALE */}
-            {/* ========================================== */}
             {(user.role === 'admin' || user.role === 'ADMIN') && (
               <section style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: '40px', border: '1px solid #e1e4e8' }}>
                 <h3 style={{ margin: '0 0 20px 0', color: '#2b2d42', borderBottom: '2px solid #f1f3f5', paddingBottom: '10px' }}>
@@ -256,13 +266,9 @@ function Dashboard({ onLogout }) {
               </section>
             )}
 
-            {/* GRID PRINCIPAL: FORMULAR CREARE + LISTĂ CAMPANII */}
-            <div style={{ display: 'grid', gridTemplateColumns: (user.role === 'admin' || user.role === 'ADMIN') ? '1fr 2fr' : '2fr 1fr', gap: '30px', alignItems: 'start' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: (user.role === 'admin' || user.role === 'ADMIN') ? '1fr 2fr' : '1fr', gap: '30px', alignItems: 'start' }}>
               
-              {/* ========================================== */}
-              {/* PANOU ADMIN: FORMULAR CREARE CAMPANIE NOUĂ */}
-              {/* ========================================== */}
-              {(user.role === 'admin' || user.role === 'ADMIN') ? (
+              {(user.role === 'admin' || user.role === 'ADMIN') && (
                 <section style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid #e1e4e8' }}>
                   <h3 style={{ margin: '0 0 20px 0', color: '#2b2d42', borderBottom: '2px solid #f1f3f5', paddingBottom: '10px' }}>
                     🆕 Adaugă Campanie Nouă
@@ -280,10 +286,21 @@ function Dashboard({ onLogout }) {
                       <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', fontWeight: 'bold' }}>Adresă Exactă:</label>
                       <input type="text" value={newCampAddress} onChange={(e) => setNewCampAddress(e.target.value)} required style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }} placeholder="Ex: Str. Principală, Nr. 45" />
                     </div>
+                    
+                    {/* INPUT MODIFICAT PENTRU FORMATUL ROMÂNESC */}
                     <div style={{ marginBottom: '12px' }}>
-                      <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', fontWeight: 'bold' }}>Dată Campanie:</label>
-                      <input type="date" value={newCampDate} onChange={(e) => setNewCampDate(e.target.value)} required style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }} />
+                      <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', fontWeight: 'bold' }}>Dată Campanie (Format Românesc):</label>
+                      <input 
+                        type="text" 
+                        value={newCampDate} 
+                        onChange={(e) => setNewCampDate(e.target.value)} 
+                        maxLength="10"
+                        required 
+                        style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }} 
+                        placeholder="ZZ-LL-AAAA (ex: 28-06-2026)"
+                      />
                     </div>
+
                     <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
                       <div style={{ flex: 1 }}>
                         <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', fontWeight: 'bold' }}>Ora Start:</label>
@@ -309,36 +326,8 @@ function Dashboard({ onLogout }) {
                     </button>
                   </form>
                 </section>
-              ) : (
-                /* Vedere pentru utilizatorul de rând (Donările Mele) */
-                <aside style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid #e1e4e8' }}>
-                  <h3 style={{ margin: '0 0 20px 0', color: '#2b2d42', borderBottom: '2px solid #f1f3f5', paddingBottom: '10px' }}>🩸 Programările Mele</h3>
-                  {myAppointments.length === 0 ? (
-                    <p style={{ color: '#666', fontStyle: 'italic', fontSize: '14px' }}>Nu aveți nicio programare activă rezervată.</p>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                      {myAppointments.map((app) => {
-                        const associatedCamp = campaigns.find(c => c.id === app.campaign_id);
-                        return (
-                          <div key={app.id} style={{ border: '1px solid #e1e4e8', borderRadius: '6px', padding: '15px', backgroundColor: '#fafafa' }}>
-                            <h4 style={{ margin: '0 0 5px 0', color: '#333', fontSize: '15px' }}>{associatedCamp ? associatedCamp.title : `Campanie #${app.campaign_id}`}</h4>
-                            <p style={{ margin: '0 0 10px 0', fontSize: '13px', color: '#666' }}>📍 {associatedCamp ? associatedCamp.location_name : 'N/A'}</p>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px' }}>
-                              <div>
-                                <span>📅 {associatedCamp ? formatRomanianDate(associatedCamp.date) : 'N/A'}</span>
-                                <span style={{ display: 'block', fontWeight: 'bold', color: '#e63946', marginTop: '2px' }}>🕒 Ora: {app.slot_time.substring(0, 5)}</span>
-                              </div>
-                              <button onClick={() => handleCancelClick(app.id)} style={{ padding: '5px 10px', backgroundColor: '#fff', border: '1px solid #dc3545', color: '#dc3545', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>Anulează</button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </aside>
               )}
               
-              {/* Secțiunea Campanii Active (Comună și pentru Donator și pentru Admin) */}
               <main style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid #e1e4e8' }}>
                 <h3 style={{ margin: '0 0 20px 0', color: '#2b2d42', borderBottom: '2px solid #f1f3f5', paddingBottom: '10px' }}>
                   📍 Campanii de Donare Active (Disponibile Acum)
@@ -366,6 +355,34 @@ function Dashboard({ onLogout }) {
                   </div>
                 )}
               </main>
+
+              {!(user.role === 'admin' || user.role === 'ADMIN') && (
+                <aside style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid #e1e4e8' }}>
+                  <h3 style={{ margin: '0 0 20px 0', color: '#2b2d42', borderBottom: '2px solid #f1f3f5', paddingBottom: '10px' }}>🩸 Programările Mele</h3>
+                  {myAppointments.length === 0 ? (
+                    <p style={{ color: '#666', fontStyle: 'italic', fontSize: '14px' }}>Nu aveți nicio programare activă rezervată.</p>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                      {myAppointments.map((app) => {
+                        const associatedCamp = campaigns.find(c => c.id === app.campaign_id);
+                        return (
+                          <div key={app.id} style={{ border: '1px solid #e1e4e8', borderRadius: '6px', padding: '15px', backgroundColor: '#fafafa' }}>
+                            <h4 style={{ margin: '0 0 5px 0', color: '#333', fontSize: '15px' }}>{associatedCamp ? associatedCamp.title : `Campanie #${app.campaign_id}`}</h4>
+                            <p style={{ margin: '0 0 10px 0', fontSize: '13px', color: '#666' }}>📍 {associatedCamp ? associatedCamp.location_name : 'N/A'}</p>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px' }}>
+                              <div>
+                                <span>📅 {associatedCamp ? formatRomanianDate(associatedCamp.date) : 'N/A'}</span>
+                                <span style={{ display: 'block', fontWeight: 'bold', color: '#e63946', marginTop: '2px' }}>🕒 Ora: {app.slot_time.substring(0, 5)}</span>
+                              </div>
+                              <button onClick={() => handleCancelClick(app.id)} style={{ padding: '5px 10px', backgroundColor: '#fff', border: '1px solid #dc3545', color: '#dc3545', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>Anulează</button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </aside>
+              )}
 
             </div>
           </>
