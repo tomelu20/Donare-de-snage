@@ -148,3 +148,36 @@ def get_all_appointments_for_admin(db: Session = Depends(get_db)):
     """)
     result = db.execute(query).mappings().all()
     return result
+
+@router.put("/{id}/attend", status_code=status.HTTP_200_OK)
+def attend_appointment(id: int, db: Session = Depends(get_db)):
+    # Modificăm statusul în 'attended' (Prezent)
+    query = text("""
+        UPDATE appointments 
+        SET status = 'attended' 
+        WHERE id = :app_id
+    """)
+    result = db.execute(query, {"app_id": id})
+    db.commit()
+    
+    if result.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Programarea nu a fost găsită.")
+        
+    return {"message": "Donatorul a fost marcat ca prezent."}
+
+
+@router.put("/{id}/noshow", status_code=status.HTTP_200_OK)
+def noshow_appointment(id: int, db: Session = Depends(get_db)):
+    # Modificăm statusul în 'no_show' (Absent)
+    query = text("""
+        UPDATE appointments 
+        SET status = 'no_show' 
+        WHERE id = :app_id
+    """)
+    result = db.execute(query, {"app_id": id})
+    db.commit()
+    
+    if result.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Programarea nu a fost găsită.")
+        
+    return {"message": "Donatorul a fost marcat ca absent."}

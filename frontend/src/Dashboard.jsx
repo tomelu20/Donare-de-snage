@@ -17,6 +17,16 @@ function Dashboard({ onLogout }) {
   const [appointmentToCancel, setAppointmentToCancel] = useState(null); 
   const [successNotification, setSuccessNotification] = useState(''); 
 
+  // State-uri pentru Formularul de Campanie Nouă (Admin)
+  const [newCampTitle, setNewCampTitle] = useState('');
+  const [newCampLocation, setNewCampLocation] = useState('');
+  const [newCampAddress, setNewCampAddress] = useState('');
+  const [newCampDate, setNewCampDate] = useState('');
+  const [newCampStartTime, setNewCampStartTime] = useState('08:30');
+  const [newCampEndTime, setNewCampEndTime] = useState('13:00');
+  const [newCampSlotDuration, setNewCampSlotDuration] = useState(15);
+  const [newCampCapacity, setNewCampCapacity] = useState(2);
+
   const formatRomanianDate = (dateString) => {
     if (!dateString) return 'N/A';
     const parts = dateString.split('-');
@@ -30,15 +40,12 @@ function Dashboard({ onLogout }) {
       setLoading(true); 
       setApiError(''); 
       
-      // 1. Încărcăm campaniile active
       const campaignsResponse = await axios.get('http://127.0.0.1:8000/campaigns/');
       setCampaigns(campaignsResponse.data);
 
-      // 2. Încărcăm programările mele transmițând user_id ca parametru query
       const myAppsResponse = await axios.get(`http://127.0.0.1:8000/appointments/me?user_id=${user.id}`);
       setMyAppointments(myAppsResponse.data);
 
-      // 3. Dacă e admin, încărcăm absolut toate programările din sistem
       if (user.role === 'admin' || user.role === 'ADMIN') {
         const adminAppsResponse = await axios.get('http://127.0.0.1:8000/appointments/all');
         setAdminAppointments(adminAppsResponse.data);
@@ -55,7 +62,6 @@ function Dashboard({ onLogout }) {
     fetchData();
   }, []);
 
-  // Funcție unificată pentru deschiderea modalului de confirmare (atât pt user, cât și pt admin)
   const handleCancelClick = (appId) => {
     setAppointmentToCancel(appId);
   };
@@ -64,30 +70,77 @@ function Dashboard({ onLogout }) {
     if (!appointmentToCancel) return;
     try {
       setApiError('');
-      // Trimite ID-ul programării către ruta de anulare din backend
       await axios.put(`http://127.0.0.1:8000/appointments/${appointmentToCancel}/cancel`);
-      
       setSuccessNotification('Programarea a fost anulată cu succes.');
       setAppointmentToCancel(null);
-      
-      // Reîmprospătăm toate listele de pe ecran
       fetchData();
-
-      setTimeout(() => {
-        setSuccessNotification('');
-      }, 4000);
-
+      setTimeout(() => setSuccessNotification(''), 4000);
     } catch (err) {
       setApiError(err.response?.data?.detail || 'Nu s-a putut anula programarea.');
       setAppointmentToCancel(null);
     }
   };
 
+  // Funcție Admin: Marchează Prezent (Attended)
+  const handleMarkAttended = async (appId) => {
+    try {
+      setApiError('');
+      await axios.put(`http://127.0.0.1:8000/appointments/${appId}/attend`);
+      setSuccessNotification('Donator marcat ca PREZENT cu succes.');
+      fetchData();
+      setTimeout(() => setSuccessNotification(''), 3000);
+    } catch (err) {
+      setApiError(err.response?.data?.detail || 'Eroare la actualizarea statusului.');
+    }
+  };
+
+  // Funcție Admin: Marchează Absent (No Show)
+  const handleMarkNoShow = async (appId) => {
+    try {
+      setApiError('');
+      await axios.put(`http://127.0.0.1:8000/appointments/${appId}/noshow`);
+      setSuccessNotification('Donator marcat ca ABSENT.');
+      fetchData();
+      setTimeout(() => setSuccessNotification(''), 3000);
+    } catch (err) {
+      setApiError(err.response?.data?.detail || 'Eroare la actualizarea statusului.');
+    }
+  };
+
+  // Funcție Admin: Trimitere formular campanie nouă
+  const handleCreateCampaign = async (e) => {
+    e.preventDefault();
+    try {
+      setApiError('');
+      await axios.post('http://127.0.0.1:8000/campaigns/', {
+        title: newCampTitle,
+        location_name: newCampLocation,
+        address: newCampAddress,
+        date: newCampDate,
+        start_time: newCampStartTime + ':00',
+        end_time: newCampEndTime + ':00',
+        slot_duration: parseInt(newCampSlotDuration),
+        capacity_per_slot: parseInt(newCampCapacity)
+      });
+
+      setSuccessNotification('Campania nouă a fost creată și publicată cu succes!');
+      
+      // Resetare câmpuri formular
+      setNewCampTitle('');
+      setNewCampLocation('');
+      setNewCampAddress('');
+      setNewCampDate('');
+      
+      fetchData(); // Reîncărcăm lista de campanii active
+      setTimeout(() => setSuccessNotification(''), 4000);
+    } catch (err) {
+      setApiError(err.response?.data?.detail || 'Nu s-a putut crea campania. Verificați datele introduse.');
+    }
+  };
+
   const handleLocalLogout = () => {
     sessionStorage.removeItem('user_session');
-    if (onLogout) {
-      onLogout();
-    }
+    if (onLogout) onLogout();
   };
 
   if (!user) {
@@ -124,32 +177,23 @@ function Dashboard({ onLogout }) {
 
       <div style={{ maxWidth: '1200px', margin: '30px auto', padding: '0 20px' }}>
         
-        {/* Notificări de eroare / succes globale */}
-        {apiError && (
-          <div style={{ backgroundColor: '#ffe3e3', color: '#dc3545', padding: '15px', borderRadius: '6px', marginBottom: '20px', borderLeft: '5px solid #dc3545', fontWeight: 'bold' }}>
-            ❌ {apiError}
-          </div>
-        )}
-        {successNotification && (
-          <div style={{ backgroundColor: '#e3ffe3', color: '#198754', padding: '15px', borderRadius: '6px', marginBottom: '20px', borderLeft: '5px solid #198754', fontWeight: 'bold' }}>
-            ✔️ {successNotification}
-          </div>
-        )}
+        {apiError && <div style={{ backgroundColor: '#ffe3e3', color: '#dc3545', padding: '15px', borderRadius: '6px', marginBottom: '20px', borderLeft: '5px solid #dc3545', fontWeight: 'bold' }}>❌ {apiError}</div>}
+        {successNotification && <div style={{ backgroundColor: '#e3ffe3', color: '#198754', padding: '15px', borderRadius: '6px', marginBottom: '20px', borderLeft: '5px solid #198754', fontWeight: 'bold' }}>✔️ {successNotification}</div>}
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: '50px', fontSize: '18px', color: '#666' }}>Se încarcă datele panoului...</div>
         ) : (
           <>
             {/* ========================================== */}
-            {/* PANOU ADMIN: Vizualizare Globală Programări */}
+            {/* PANOU ADMIN: MANAGEMENT PROGRAMĂRI GLOBALE */}
             {/* ========================================== */}
             {(user.role === 'admin' || user.role === 'ADMIN') && (
               <section style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: '40px', border: '1px solid #e1e4e8' }}>
                 <h3 style={{ margin: '0 0 20px 0', color: '#2b2d42', borderBottom: '2px solid #f1f3f5', paddingBottom: '10px' }}>
-                  📋 Management Centralizat Programări (Vizualizare Admin)
+                  📋 Centralizator Management Programări (Vizualizare Medicală)
                 </h3>
                 {adminAppointments.length === 0 ? (
-                  <p style={{ color: '#666', fontStyle: 'italic' }}>Nu există nicio programare înregistrată în sistem în acest moment.</p>
+                  <p style={{ color: '#666', fontStyle: 'italic' }}>Nu există nicio programare înregistrată în acest moment.</p>
                 ) : (
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
@@ -158,10 +202,9 @@ function Dashboard({ onLogout }) {
                           <th style={{ padding: '12px' }}>Donator</th>
                           <th style={{ padding: '12px' }}>Telefon</th>
                           <th style={{ padding: '12px' }}>Campanie / Locație</th>
-                          <th style={{ padding: '12px' }}>Dată Campanie</th>
-                          <th style={{ padding: '12px' }}>Interval Orar</th>
-                          <th style={{ padding: '12px' }}>Status</th>
-                          <th style={{ padding: '12px', textAlign: 'center' }}>Acțiuni Admin</th>
+                          <th style={{ padding: '12px' }}>Dată & Oră</th>
+                          <th style={{ padding: '12px' }}>Status Curent</th>
+                          <th style={{ padding: '12px', textAlign: 'center' }}>Acțiuni Modificare Status</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -169,24 +212,39 @@ function Dashboard({ onLogout }) {
                           <tr key={app.appointment_id} style={{ borderBottom: '1px solid #eceeef' }}>
                             <td style={{ padding: '12px', fontWeight: 'bold' }}>{app.donor_name} {app.donor_surname}</td>
                             <td style={{ padding: '12px' }}>{app.donor_phone}</td>
+                            <td style={{ padding: '12px', fontWeight: '500' }}>{app.campaign_title}</td>
                             <td style={{ padding: '12px' }}>
-                              <span style={{ fontWeight: '500' }}>{app.campaign_title}</span>
+                              {formatRomanianDate(app.campaign_date)} | <strong style={{ color: '#e63946' }}>{app.slot_time.substring(0, 5)}</strong>
                             </td>
-                            <td style={{ padding: '12px' }}>{formatRomanianDate(app.campaign_date)}</td>
-                            <td style={{ padding: '12px', color: '#e63946', fontWeight: 'bold' }}>{app.slot_time.substring(0, 5)}</td>
                             <td style={{ padding: '12px' }}>
-                              <span style={{ padding: '4px 8px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold', backgroundColor: app.status === 'confirmed' ? '#e3ffe3' : '#fff3cd', color: app.status === 'confirmed' ? '#198754' : '#856404' }}>
-                                {app.status === 'confirmed' ? 'Confirmată' : app.status}
+                              <span style={{
+                                padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold',
+                                backgroundColor: app.status === 'confirmed' ? '#e3ffe3' : app.status === 'attended' ? '#d1e7dd' : '#fff3cd',
+                                color: app.status === 'confirmed' ? '#198754' : app.status === 'attended' ? '#0f5132' : '#856404'
+                              }}>
+                                {app.status === 'confirmed' ? 'Confirmată' : app.status === 'attended' ? 'Prezent ✓' : 'Absent ✗'}
                               </span>
                             </td>
-                            <td style={{ padding: '12px', textAlign: 'center' }}>
+                            <td style={{ padding: '12px', display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                              <button 
+                                onClick={() => handleMarkAttended(app.appointment_id)}
+                                disabled={app.status === 'attended'}
+                                style={{ padding: '6px 10px', backgroundColor: app.status === 'attended' ? '#ccc' : '#198754', color: 'white', border: 'none', borderRadius: '4px', cursor: app.status === 'attended' ? 'not-allowed' : 'pointer', fontSize: '11px', fontWeight: 'bold' }}
+                              >
+                                Prezent
+                              </button>
+                              <button 
+                                onClick={() => handleMarkNoShow(app.appointment_id)}
+                                disabled={app.status === 'no_show'}
+                                style={{ padding: '6px 10px', backgroundColor: app.status === 'no_show' ? '#ccc' : '#ffc107', color: '#333', border: 'none', borderRadius: '4px', cursor: app.status === 'no_show' ? 'not-allowed' : 'pointer', fontSize: '11px', fontWeight: 'bold' }}
+                              >
+                                Absent
+                              </button>
                               <button 
                                 onClick={() => handleCancelClick(app.appointment_id)}
-                                style={{ padding: '6px 12px', backgroundColor: '#fff', border: '1px solid #dc3545', color: '#dc3545', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', transition: 'all 0.2s' }}
-                                onMouseEnter={(e) => { e.target.style.backgroundColor = '#dc3545'; e.target.style.color = '#fff'; }}
-                                onMouseLeave={(e) => { e.target.style.backgroundColor = '#fff'; e.target.style.color = '#dc3545'; }}
+                                style={{ padding: '6px 10px', backgroundColor: '#fff', border: '1px solid #dc3545', color: '#dc3545', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}
                               >
-                                Anulează Programarea
+                                Anulează
                               </button>
                             </td>
                           </tr>
@@ -198,24 +256,103 @@ function Dashboard({ onLogout }) {
               </section>
             )}
 
-            {/* GRID PRINCIPAL */}
-            <div style={{ display: 'grid', gridTemplateColumns: (user.role === 'admin' || user.role === 'ADMIN') ? '1fr' : '2fr 1fr', gap: '30px', alignItems: 'start' }}>
+            {/* GRID PRINCIPAL: FORMULAR CREARE + LISTĂ CAMPANII */}
+            <div style={{ display: 'grid', gridTemplateColumns: (user.role === 'admin' || user.role === 'ADMIN') ? '1fr 2fr' : '2fr 1fr', gap: '30px', alignItems: 'start' }}>
               
-              {/* Secțiune Campanii Active */}
+              {/* ========================================== */}
+              {/* PANOU ADMIN: FORMULAR CREARE CAMPANIE NOUĂ */}
+              {/* ========================================== */}
+              {(user.role === 'admin' || user.role === 'ADMIN') ? (
+                <section style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid #e1e4e8' }}>
+                  <h3 style={{ margin: '0 0 20px 0', color: '#2b2d42', borderBottom: '2px solid #f1f3f5', paddingBottom: '10px' }}>
+                    🆕 Adaugă Campanie Nouă
+                  </h3>
+                  <form onSubmit={handleCreateCampaign}>
+                    <div style={{ marginBottom: '12px' }}>
+                      <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', fontWeight: 'bold' }}>Titlu Campanie:</label>
+                      <input type="text" value={newCampTitle} onChange={(e) => setNewCampTitle(e.target.value)} required style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }} placeholder="Ex: Donare de Primăvară" />
+                    </div>
+                    <div style={{ marginBottom: '12px' }}>
+                      <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', fontWeight: 'bold' }}>Nume Centru / Locație:</label>
+                      <input type="text" value={newCampLocation} onChange={(e) => setNewCampLocation(e.target.value)} required style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }} placeholder="Ex: Căminul Cultural Dumbrava" />
+                    </div>
+                    <div style={{ marginBottom: '12px' }}>
+                      <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', fontWeight: 'bold' }}>Adresă Exactă:</label>
+                      <input type="text" value={newCampAddress} onChange={(e) => setNewCampAddress(e.target.value)} required style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }} placeholder="Ex: Str. Principală, Nr. 45" />
+                    </div>
+                    <div style={{ marginBottom: '12px' }}>
+                      <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', fontWeight: 'bold' }}>Dată Campanie:</label>
+                      <input type="date" value={newCampDate} onChange={(e) => setNewCampDate(e.target.value)} required style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }} />
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', fontWeight: 'bold' }}>Ora Start:</label>
+                        <input type="time" value={newCampStartTime} onChange={(e) => setNewCampStartTime(e.target.value)} required style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', fontWeight: 'bold' }}>Ora Final:</label>
+                        <input type="time" value={newCampEndTime} onChange={(e) => setNewCampEndTime(e.target.value)} required style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }} />
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', fontWeight: 'bold' }}>Minut / Slot:</label>
+                        <input type="number" min="5" max="60" value={newCampSlotDuration} onChange={(e) => setNewCampSlotDuration(e.target.value)} required style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', fontWeight: 'bold' }}>Capacitate / Slot:</label>
+                        <input type="number" min="1" max="20" value={newCampCapacity} onChange={(e) => setNewCampCapacity(e.target.value)} required style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }} />
+                      </div>
+                    </div>
+                    <button type="submit" style={{ width: '100%', padding: '10px', backgroundColor: '#e63946', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                      Publică Campania Active
+                    </button>
+                  </form>
+                </section>
+              ) : (
+                /* Vedere pentru utilizatorul de rând (Donările Mele) */
+                <aside style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid #e1e4e8' }}>
+                  <h3 style={{ margin: '0 0 20px 0', color: '#2b2d42', borderBottom: '2px solid #f1f3f5', paddingBottom: '10px' }}>🩸 Programările Mele</h3>
+                  {myAppointments.length === 0 ? (
+                    <p style={{ color: '#666', fontStyle: 'italic', fontSize: '14px' }}>Nu aveți nicio programare activă rezervată.</p>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                      {myAppointments.map((app) => {
+                        const associatedCamp = campaigns.find(c => c.id === app.campaign_id);
+                        return (
+                          <div key={app.id} style={{ border: '1px solid #e1e4e8', borderRadius: '6px', padding: '15px', backgroundColor: '#fafafa' }}>
+                            <h4 style={{ margin: '0 0 5px 0', color: '#333', fontSize: '15px' }}>{associatedCamp ? associatedCamp.title : `Campanie #${app.campaign_id}`}</h4>
+                            <p style={{ margin: '0 0 10px 0', fontSize: '13px', color: '#666' }}>📍 {associatedCamp ? associatedCamp.location_name : 'N/A'}</p>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px' }}>
+                              <div>
+                                <span>📅 {associatedCamp ? formatRomanianDate(associatedCamp.date) : 'N/A'}</span>
+                                <span style={{ display: 'block', fontWeight: 'bold', color: '#e63946', marginTop: '2px' }}>🕒 Ora: {app.slot_time.substring(0, 5)}</span>
+                              </div>
+                              <button onClick={() => handleCancelClick(app.id)} style={{ padding: '5px 10px', backgroundColor: '#fff', border: '1px solid #dc3545', color: '#dc3545', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>Anulează</button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </aside>
+              )}
+              
+              {/* Secțiunea Campanii Active (Comună și pentru Donator și pentru Admin) */}
               <main style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid #e1e4e8' }}>
                 <h3 style={{ margin: '0 0 20px 0', color: '#2b2d42', borderBottom: '2px solid #f1f3f5', paddingBottom: '10px' }}>
                   📍 Campanii de Donare Active (Disponibile Acum)
                 </h3>
                 {campaigns.length === 0 ? (
-                  <p style={{ color: '#666', fontStyle: 'italic' }}>Momentan nu există campanii de donare de sânge programate.</p>
+                  <p style={{ color: '#666', fontStyle: 'italic' }}>Momentan nu există campanii active.</p>
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
                     {campaigns.map((camp) => (
                       <div key={camp.id} style={{ border: '1px solid #e1e4e8', borderRadius: '6px', padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff' }}>
                         <div>
                           <h4 style={{ margin: '0 0 8px 0', color: '#e63946', fontSize: '18px' }}>{camp.title}</h4>
-                          <p style={{ margin: '0 0 5px 0', fontSize: '14px', color: '#333' }}><strong>Centru/Locație:</strong> {camp.location_name}</p>
-                          <p style={{ margin: '0 0 5px 0', fontSize: '14px', color: '#666' }}><strong>Adresă exactă:</strong> {camp.address}</p>
+                          <p style={{ margin: '0 0 5px 0', fontSize: '14px', color: '#333' }}><strong>Locație:</strong> {camp.location_name}</p>
+                          <p style={{ margin: '0 0 5px 0', fontSize: '14px', color: '#666' }}><strong>Adresă:</strong> {camp.address}</p>
                           <div style={{ display: 'flex', gap: '15px', marginTop: '10px', fontSize: '13px', color: '#444' }}>
                             <span>📅 <strong>Data:</strong> {formatRomanianDate(camp.date)}</span>
                             <span>🕒 <strong>Program:</strong> {camp.start_time.substring(0, 5)} - {camp.end_time.substring(0, 5)}</span>
@@ -230,75 +367,25 @@ function Dashboard({ onLogout }) {
                 )}
               </main>
 
-              {/* Secțiune Istoric Programări Personale (Ascunsă sau secundară pentru Admin dacă vrea să se programeze singur) */}
-              {!(user.role === 'admin' || user.role === 'ADMIN') && (
-                <aside style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid #e1e4e8' }}>
-                  <h3 style={{ margin: '0 0 20px 0', color: '#2b2d42', borderBottom: '2px solid #f1f3f5', paddingBottom: '10px' }}>
-                    🩸 Programările Mele
-                  </h3>
-                  {myAppointments.length === 0 ? (
-                    <p style={{ color: '#666', fontStyle: 'italic', fontSize: '14px' }}>Nu aveți nicio programare activă rezervată.</p>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                      {myAppointments.map((app) => {
-                        const associatedCamp = campaigns.find(c => c.id === app.campaign_id);
-                        return (
-                          <div key={app.id} style={{ border: '1px solid #e1e4e8', borderRadius: '6px', padding: '15px', backgroundColor: '#fafafa' }}>
-                            <h4 style={{ margin: '0 0 5px 0', color: '#333', fontSize: '15px' }}>
-                              {associatedCamp ? associatedCamp.title : `Campanie (ID: ${app.campaign_id})`}
-                            </h4>
-                            <p style={{ margin: '0 0 10px 0', fontSize: '13px', color: '#666' }}>
-                              📍 {associatedCamp ? associatedCamp.location_name : 'Locație indisponibilă'}
-                            </p>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px' }}>
-                              <div>
-                                <span>📅 {associatedCamp ? formatRomanianDate(associatedCamp.date) : 'N/A'}</span>
-                                <span style={{ display: 'block', fontWeight: 'bold', color: '#e63946', marginTop: '2px' }}>🕒 Ora: {app.slot_time.substring(0, 5)}</span>
-                              </div>
-                              <button onClick={() => handleCancelClick(app.id)} style={{ padding: '5px 10px', backgroundColor: '#fff', border: '1px solid #dc3545', color: '#dc3545', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: '500' }}>
-                                Anulează
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </aside>
-              )}
-
             </div>
           </>
         )}
       </div>
 
-      {/* MODAL PROGRAMARE */}
-      {selectedCampaign && (
-        <AppointmentModal 
-          campaign={selectedCampaign} 
-          onClose={() => setSelectedCampaign(null)} 
-          onRefresh={fetchData} 
-        />
-      )}
+      {selectedCampaign && <AppointmentModal campaign={selectedCampaign} onClose={() => setSelectedCampaign(null)} onRefresh={fetchData} />}
 
-      {/* POPUP CONFIRMARE ANULARE (Comun pentru Admin și Utilizator) */}
       {appointmentToCancel && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1500 }}>
           <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', maxWidth: '400px', width: '90%', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.15)' }}>
             <h4 style={{ margin: '0 0 10px 0', color: '#333' }}>Confirmare Anulare</h4>
             <p style={{ color: '#666', fontSize: '15px', marginBottom: '20px' }}>Sigur doriți anularea definitivă a acestei programări?</p>
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-              <button onClick={() => setAppointmentToCancel(null)} style={{ padding: '8px 16px', backgroundColor: '#fff', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer' }}>
-                Renunță
-              </button>
-              <button onClick={executeCancel} style={{ padding: '8px 16px', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
-                Da, anulează
-              </button>
+              <button onClick={() => setAppointmentToCancel(null)} style={{ padding: '8px 16px', backgroundColor: '#fff', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer' }}>Renunță</button>
+              <button onClick={executeCancel} style={{ padding: '8px 16px', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Da, anulează</button>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }
