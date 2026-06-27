@@ -8,6 +8,7 @@ class UserCreate(BaseModel):
     phone: str
     email: EmailStr
     password: str
+    blood_group: str
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -20,6 +21,7 @@ class UserOut(BaseModel):
     phone: str
     email: EmailStr
     role: str
+    blood_group: Optional[str] = "Nu știu"
 
     model_config = {"from_attributes": True}
 

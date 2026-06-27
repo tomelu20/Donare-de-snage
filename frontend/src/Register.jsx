@@ -7,6 +7,7 @@ function Register({ onSwitch, onRegisterSuccess }) {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [bloodGroup, setBloodGroup] = useState(''); // Rămâne gol inițial pentru a afișa placeholder-ul
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -15,34 +16,37 @@ function Register({ onSwitch, onRegisterSuccess }) {
     setError('');
     setSuccess('');
 
+    // Validare: Ne asigurăm că utilizatorul chiar a selectat o opțiune din listă
+    if (!bloodGroup) {
+      setError('Vă rugăm să selectați o opțiune pentru grupa sanguină.');
+      return;
+    }
+
     try {
-      // 1. Trimitem datele către backend și reținem răspunsul (care conține id, name, role etc.)
       const response = await axios.post('http://127.0.0.1:8000/auth/register', {
         name: name,
         surname: surname,
         phone: phone,
         email: email,
-        password: password
+        password: password,
+        blood_group: bloodGroup
       });
       
-      // 2. Salvăm direct datele utilizatorului în sesiune (exact ca la Login)
       sessionStorage.setItem('user_session', JSON.stringify(response.data));
-      
       setSuccess('Contul a fost creat cu succes! Te redirecționăm direct în aplicație...');
       
-      // 3. Golești câmpurile din formular
       setName('');
       setSurname('');
       setPhone('');
       setEmail('');
       setPassword('');
+      setBloodGroup('');
 
-      // 4. Redirecționare automată după 1.5 secunde pentru ca userul să poată citi mesajul de succes
       setTimeout(() => {
         if (onRegisterSuccess) {
           onRegisterSuccess();
         }
-      }, 1500);
+      }, 5000);
 
     } catch (err) {
       setError(err.response?.data?.detail || 'A apărut o eroare la înregistrare.');
@@ -90,6 +94,31 @@ function Register({ onSwitch, onRegisterSuccess }) {
           />
         </div>
         
+        {/* Dropdown-ul actualizat conform cerințelor tale vizuale */}
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Grupa sanguină / RH:</label>
+          <select 
+            value={bloodGroup} 
+            onChange={(e) => setBloodGroup(e.target.value)}
+            required
+            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', backgroundColor: 'white', boxSizing: 'border-box', cursor: 'pointer' }}
+          >
+            {/* Această opțiune este afișată implicit la vedere și devine ascunsă/inutilizabilă după ce dai click */}
+            <option value="" disabled hidden>Alege grupa sanguină</option>
+            
+            {/* Opțiunile vizibile la click pe listă */}
+            <option value="Nu știu">Nu știu grupa mea sanguină</option>
+            <option value="0I+">0I (Pozitiv)</option>
+            <option value="0I-">0I (Negativ)</option>
+            <option value="AII+">AII (Pozitiv)</option>
+            <option value="AII-">AII (Negativ)</option>
+            <option value="BIII+">BIII (Pozitiv)</option>
+            <option value="BIII-">BIII (Negativ)</option>
+            <option value="ABIV+">ABIV (Pozitiv)</option>
+            <option value="ABIV-">ABIV (Negativ)</option>
+          </select>
+        </div>
+
         <div style={{ marginBottom: '15px' }}>
           <label style={{ display: 'block', marginBottom: '5px' }}>Email:</label>
           <input 

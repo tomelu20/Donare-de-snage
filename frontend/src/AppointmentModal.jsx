@@ -34,7 +34,6 @@ function AppointmentModal({ campaign, onClose, onRefresh }) {
     setError('');
     setSuccess('');
 
-    // Extragem user-ul curent din sessionStorage pentru a-i lua ID-ul
     const savedUser = sessionStorage.getItem('user_session');
     const user = savedUser ? JSON.parse(savedUser) : null;
 
@@ -44,7 +43,6 @@ function AppointmentModal({ campaign, onClose, onRefresh }) {
     }
 
     try {
-      // MODIFICAT: Trimitem și user_id-ul salvat în sesiune către backend!
       await axios.post('http://127.0.0.1:8000/appointments/', {
         campaign_id: campaign.id,
         slot_time: selectedSlot,
@@ -54,10 +52,8 @@ function AppointmentModal({ campaign, onClose, onRefresh }) {
       setSuccess('Programare înregistrată cu succes!');
       setSelectedSlot('');
       
-      // Reîmprospătăm interfața din Dashboard
       if (onRefresh) onRefresh();
 
-      // Închidem modalul după 2 secunde
       setTimeout(() => {
         onClose();
       }, 2000);
@@ -77,6 +73,11 @@ function AppointmentModal({ campaign, onClose, onRefresh }) {
         <p style={{ fontSize: '15px', color: '#333', margin: '0 0 15px 0' }}>
           Alegeți ora dorită pentru campania: <strong style={{ color: '#e63946' }}>{campaign.title}</strong>
         </p>
+
+        {/* RECOMANDARE ADĂUGATĂ: Mesaj frumos și vizibil pentru prioritate RH Negativ */}
+        <div style={{ backgroundColor: '#fff3cd', color: '#856404', borderLeft: '4px solid #ffc107', padding: '12px', borderRadius: '4px', fontSize: '13px', lineHeight: '1.5', marginBottom: '20px' }}>
+          ℹ️ <strong>Recomandare Centru:</strong> Donatorii cu <strong>RH Negativ (-)</strong> au prioritate la recoltare în intervalele de dimineață, **până în ora 11:00**. Vă mulțumim pentru sprijin!
+        </div>
 
         {error && <p style={{ color: 'red', backgroundColor: '#ffe3e3', padding: '10px', borderRadius: '4px', fontSize: '14px' }}>{error}</p>}
         {success && <p style={{ color: 'green', backgroundColor: '#e3ffe3', padding: '10px', borderRadius: '4px', fontSize: '14px', fontWeight: 'bold' }}>{success}</p>}
@@ -106,7 +107,7 @@ function AppointmentModal({ campaign, onClose, onRefresh }) {
                         padding: '10px 5px',
                         borderRadius: '6px',
                         border: selectedSlot === slot.time ? '2px solid #e63946' : '1px solid #ccc',
-                        backgroundColor: isDisabled ? '#f1f3f5' : selectedSlot === slot.time ? '#ffebecc' : '#fff',
+                        backgroundColor: isDisabled ? '#f1f3f5' : selectedSlot === slot.time ? '#ffeef0' : '#fff',
                         color: isDisabled ? '#999' : selectedSlot === slot.time ? '#e63946' : '#333',
                         cursor: isDisabled ? 'not-allowed' : 'pointer',
                         fontWeight: selectedSlot === slot.time ? 'bold' : 'normal',

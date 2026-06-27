@@ -23,6 +23,7 @@ CREATE TABLE users (
     phone VARCHAR(15) NOT NULL,
     email VARCHAR(100) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
+    blood_group VARCHAR(10) NOT NULL DEFAULT 'Nu știu',
     role VARCHAR(50) NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin'))
 )
 GO

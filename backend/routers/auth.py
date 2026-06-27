@@ -32,7 +32,8 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         surname=user_data.surname,
         phone=user_data.phone,
         email=user_data.email,
-        password_hash=hashed_password
+        password_hash=hashed_password,
+        blood_group=user_data.blood_group
     )
     
     # 4. Salvează în baza de date (SSMS)
