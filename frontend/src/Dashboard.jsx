@@ -329,11 +329,10 @@ function Dashboard({ onLogout }) {
                           </div>
                         </div>
                         <button 
-  onClick={() => setSelectedCampaign(camp)} 
-  style={{ padding: '10px 20px', backgroundColor: '#e63946', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}
->
-  Programează-te
-</button>
+                          onClick={() => setSelectedCampaign(camp)} 
+                          style={{ padding: '10px 20px', backgroundColor: '#e63946', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}>
+                          Programează-te
+                        </button>
                       </div>
                     ))}
                   </div>
