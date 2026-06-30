@@ -277,11 +277,11 @@ function Dashboard({ onLogout }) {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '12px' }}>
                       <div>
                         <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', fontWeight: 'bold' }}>Data Început:</label>
-                        <input type="text" placeholder="ZZ-LL-AAAA" value={newCampDate} onChange={(e) => setNewCampDate(e.target.value)} required style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }} />
+                        <input type="date" value={newCampDate} onChange={(e) => setNewCampDate(e.target.value)} required style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }} />
                       </div>
                       <div>
                         <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', fontWeight: 'bold' }}>Data Sfârșit:</label>
-                        <input type="text" placeholder="ZZ-LL-AAAA" value={newCampEndDate} onChange={(e) => setNewCampEndDate(e.target.value)} required style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }} />
+                        <input type="date" value={newCampEndDate} onChange={(e) => setNewCampEndDate(e.target.value)} required style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }} />
                       </div>
                     </div>
 
