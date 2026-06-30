@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from config import settings
-from routers import auth, campaigns, appointments, eligibility
+from routers import auth, campaigns, appointments, eligibility, waitlist
 
 app = FastAPI(title="Donare Sange API")
 
@@ -21,6 +21,7 @@ app.include_router(auth.router)
 app.include_router(campaigns.router)
 app.include_router(appointments.router)
 app.include_router(eligibility.router)
+app.include_router(waitlist.router)
 
 @app.get("/")
 def root():
