@@ -51,48 +51,76 @@ def get_campaign_by_id(id: int, db: Session = Depends(get_db)):
 
 @router.get("/{id}/slots", response_model=List[SlotOut])
 def get_campaign_slots(id: int, db: Session = Depends(get_db)):
-    # 1. Căutăm campania folosind structura standard (avem nevoie de datele ei pentru matematică)
-    campaign = db.query(Campaign).filter(Campaign.id == id).first()
+    # 1. Preluăm campania
+    campaign = db.query(Campaign).filter(Campaign.id == id, Campaign.is_active == True).first()
     if not campaign:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Campania nu a fost găsită."
-        )
+        raise HTTPException(status_code=404, detail="Campania nu a fost găsită sau este inactivă.")
 
-    # 2. INTEROGARE SQL PURĂ pentru numărarea programărilor ocupate
+    # 2. Preluăm toate programările active pentru această campanie
     query_sql = text("""
-        SELECT slot_time, COUNT(id) AS booked_count
+        SELECT CAST(created_at AS DATE) as app_date, slot_time, COUNT(id) AS booked_count
         FROM appointments 
         WHERE campaign_id = :camp_id AND status != 'cancelled'
-        GROUP BY slot_time
+        GROUP BY CAST(created_at AS DATE), slot_time
+    """)
+    # Notă: Dacă în tabela ta appointments nu ai data salvată separat ci doar ora, 
+    # ne vom baza pe data campaniei sau corelarea sloturilor. 
+    # Cel mai sigur este să salvăm programările raportat la zi.
+    
+    # Pentru a fi 100% compatibili cu SQL-ul tău, presupunem că appointments are nevoie și de dată 
+    # dar ca să nu modificăm tabela appointments, putem grupa după o nouă coloană de dată dacă ai adăugat-o,
+    # sau presupunem că programările se leagă direct de slot_time și o dată specifică.
+    # Să folosim o abordare curată:
+    
+    query_sql = text("""
+        SELECT appointment_date, slot_time, COUNT(id) AS booked_count
+        FROM appointments 
+        WHERE campaign_id = :camp_id AND status != 'cancelled'
+        GROUP BY appointment_date, slot_time
     """)
     
-    # Executăm query-ul nativ și pasăm ID-ul campaniei ca parametru (:camp_id)
-    rezultat = db.execute(query_sql, {"camp_id": id}).fetchall()
-    
-    # Transformăm rândurile returnate de SQL Server într-un dicționar Python: { time(8, 30): 2 }
-    taken_slots = {row.slot_time: row.booked_count for row in rezultat}
+    try:
+        rezultat = db.execute(query_sql, {"camp_id": id}).fetchall()
+        taken_slots = {(row.appointment_date, row.slot_time): row.booked_count for row in rezultat}
+    except Exception:
+        # Fallback în cazul în care nu ai adăugat încă coloana appointment_date în appointments:
+        # Presupunem că tabela appointments folosește doar slot_time (cazul tău inițial)
+        rezultat = db.execute(text("""
+            SELECT slot_time, COUNT(id) AS booked_count 
+            FROM appointments WHERE campaign_id = :camp_id AND status != 'cancelled' GROUP BY slot_time
+        """), {"camp_id": id}).fetchall()
+        taken_slots = {(campaign.date, row.slot_time): row.booked_count for row in rezultat}
 
-    # 3. Generăm matematic intervalele orare în memorie
     slots = []
-    current_datetime = datetime.combine(campaign.date, campaign.start_time)
-    end_datetime = datetime.combine(campaign.date, campaign.end_time)
+    
+    # Determinăm data de început și de sfârșit
+    # Dacă nu vrei să adaugi end_date în baza de date, putem folosi proprietatea că dacă end_date nu există, e campanie de o zi
+    start_date = campaign.date
+    # Verificăm dacă modelul tău are end_date, altfel fallback la o singură zi
+    end_date = getattr(campaign, 'end_date', campaign.date) 
 
-    while current_datetime < end_datetime:
-        current_time_obj = current_datetime.time()
+    current_date = start_date
+    while current_date <= end_date:
+        current_datetime = datetime.combine(current_date, campaign.start_time)
+        end_datetime = datetime.combine(current_date, campaign.end_time)
+
+        while current_datetime < end_datetime:
+            current_time_obj = current_datetime.time()
+            
+            # Verificăm câte locuri sunt ocupate în această zi specifică la această oră
+            booked_count = taken_slots.get((current_date, current_time_obj), 0)
+            remaining_capacity = campaign.capacity_per_slot - booked_count
+            
+            # Adăugăm data în structura de slot trimisă către Frontend
+            slots.append({
+                "date": current_date.isoformat(), # "YYYY-MM-DD"
+                "time": current_time_obj.strftime("%H:%M:%S"),
+                "available_slots": max(0, remaining_capacity),
+                "is_available": remaining_capacity > 0
+            })
+            
+            current_datetime += timedelta(minutes=campaign.slot_duration)
         
-        # Luăm numărul de locuri ocupate din dicționarul generat de SQL-ul tău (implicit 0 dacă e gol)
-        booked_count = taken_slots.get(current_time_obj, 0)
-        
-        # Calculăm capacitatea rămasă
-        remaining_capacity = campaign.capacity_per_slot - booked_count
-        
-        slots.append({
-            "time": current_time_obj.strftime("%H:%M"),
-            "available_slots": max(0, remaining_capacity),
-            "is_available": remaining_capacity > 0
-        })
-        
-        current_datetime += timedelta(minutes=campaign.slot_duration)
+        current_date += timedelta(days=1)
 
     return slots

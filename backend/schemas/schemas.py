@@ -109,3 +109,4 @@ class SlotOut(BaseModel):
     time: str
     available_slots: int
     is_available: bool
+    date: str
