@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import AppointmentModal from './AppointmentModal'; 
+import WaitlistModal from './WaitlistModal'; 
 
 function Dashboard({ onLogout }) {
   const savedUser = sessionStorage.getItem('user_session'); 
@@ -9,10 +10,12 @@ function Dashboard({ onLogout }) {
   const [campaigns, setCampaigns] = useState([]); 
   const [myAppointments, setMyAppointments] = useState([]); 
   const [adminAppointments, setAdminAppointments] = useState([]); 
+  const [adminWaitlist, setAdminWaitlist] = useState([]); // <-- State nou pentru waitlist admin
   
   const [loading, setLoading] = useState(true); 
   const [apiError, setApiError] = useState(''); 
   const [selectedCampaign, setSelectedCampaign] = useState(null); 
+  const [waitlistCampaign, setWaitlistCampaign] = useState(null); 
 
   const [appointmentToCancel, setAppointmentToCancel] = useState(null); 
   const [successNotification, setSuccessNotification] = useState(''); 
@@ -38,10 +41,14 @@ function Dashboard({ onLogout }) {
       const campaignsRes = await axios.get('http://127.0.0.1:8000/campaigns/');
       setCampaigns(campaignsRes.data);
 
-      // 2. În funcție de rol, apelăm rutele specifice din backend-ul tău
+      // 2. În funcție de rol, apelăm rutele specifice din backend
       if (user.role === 'admin' || user.role === 'ADMIN') {
         const adminAppsRes = await axios.get('http://127.0.0.1:8000/appointments/all');
         setAdminAppointments(adminAppsRes.data);
+
+        // Preluăm înscrierile din waitlist pentru admin [cite: 183]
+        const adminWaitlistRes = await axios.get('http://127.0.0.1:8000/waitlist/all');
+        setAdminWaitlist(adminWaitlistRes.data);
       } else {
         const myAppsRes = await axios.get(`http://127.0.0.1:8000/appointments/me?user_id=${user.id}`);
         setMyAppointments(myAppsRes.data);
@@ -202,55 +209,104 @@ function Dashboard({ onLogout }) {
           <>
             {/* MANAGEMENT REZERVĂRI ADMIN */}
             {(user?.role === 'admin' || user?.role === 'ADMIN') && (
-              <section style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: '40px', border: '1px solid #e1e4e8' }}>
-                <h3 style={{ margin: '0 0 20px 0', color: '#2b2d42', borderBottom: '2px solid #f1f3f5', paddingBottom: '10px' }}>
-                  📋 Centralizator Management Programări (Vizualizare Medicală)
-                </h3>
-                {adminAppointments.length === 0 ? (
-                  <p style={{ color: '#666', fontStyle: 'italic' }}>Nu există nicio programare înregistrată în acest moment.</p>
-                ) : (
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                      <thead>
-                        <tr style={{ backgroundColor: '#f8f9fa', borderBottom: '2px solid #dee2e6' }}>
-                          <th style={{ padding: '12px' }}>Donator</th>
-                          <th style={{ padding: '12px' }}>Telefon</th>
-                          <th style={{ padding: '12px' }}>Campanie</th>
-                          <th style={{ padding: '12px' }}>Dată & Oră</th>
-                          <th style={{ padding: '12px' }}>Status</th>
-                          <th style={{ padding: '12px', textAlign: 'center' }}>Acțiuni Modificare Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {adminAppointments.map((app) => (
-                          <tr key={app.appointment_id || app.id} style={{ borderBottom: '1px solid #eceeef' }}>
-                            <td style={{ padding: '12px', fontWeight: 'bold' }}>{app.donor_name} {app.donor_surname}</td>
-                            <td style={{ padding: '12px' }}>{app.donor_phone}</td>
-                            <td style={{ padding: '12px', fontWeight: '500' }}>{app.campaign_title}</td>
-                            <td style={{ padding: '12px' }}>
-                              {formatDateRo(app.campaign_date)} | <strong style={{ color: '#e63946' }}>{formatTimeShort(app.slot_time)}</strong>
-                            </td>
-                            <td style={{ padding: '12px' }}>
-                              <span style={{
-                                padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold',
-                                backgroundColor: app.status === 'confirmed' ? '#e3ffe3' : app.status === 'attended' ? '#d1e7dd' : '#fff3cd',
-                                color: app.status === 'confirmed' ? '#198754' : app.status === 'attended' ? '#0f5132' : '#856404'
-                              }}>
-                                {app.status === 'confirmed' ? 'Confirmată' : app.status === 'attended' ? 'Prezent ✓' : 'Absent ✗'}
-                              </span>
-                            </td>
-                            <td style={{ padding: '12px', display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                              <button onClick={() => handleMarkAttendance(app.appointment_id || app.id)} disabled={app.status === 'attended'} style={{ padding: '6px 10px', backgroundColor: app.status === 'attended' ? '#ccc' : '#198754', color: 'white', border: 'none', borderRadius: '4px', cursor: app.status === 'attended' ? 'not-allowed' : 'pointer', fontSize: '11px', fontWeight: 'bold' }}>Prezent</button>
-                              <button onClick={() => handleMarkNoShow(app.appointment_id || app.id)} disabled={app.status === 'no_show'} style={{ padding: '6px 10px', backgroundColor: app.status === 'no_show' ? '#ccc' : '#ffc107', color: '#333', border: 'none', borderRadius: '4px', cursor: app.status === 'no_show' ? 'not-allowed' : 'pointer', fontSize: '11px', fontWeight: 'bold' }}>Absent</button>
-                              <button onClick={() => handleCancelClick(app.appointment_id || app.id)} style={{ padding: '6px 10px', backgroundColor: '#fff', border: '1px solid #dc3545', color: '#dc3545', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}>Anulează</button>
-                            </td>
+              <>
+                <section style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: '30px', border: '1px solid #e1e4e8' }}>
+                  <h3 style={{ margin: '0 0 20px 0', color: '#2b2d42', borderBottom: '2px solid #f1f3f5', paddingBottom: '10px' }}>
+                    📋 Centralizator Management Programări (Vizualizare Medicală)
+                  </h3>
+                  {adminAppointments.length === 0 ? (
+                    <p style={{ color: '#666', fontStyle: 'italic' }}>Nu există nicio programare înregistrată în acest moment.</p>
+                  ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                        <thead>
+                          <tr style={{ backgroundColor: '#f8f9fa', borderBottom: '2px solid #dee2e6' }}>
+                            <th style={{ padding: '12px' }}>Donator</th>
+                            <th style={{ padding: '12px' }}>Telefon</th>
+                            <th style={{ padding: '12px' }}>Campanie</th>
+                            <th style={{ padding: '12px' }}>Dată & Oră</th>
+                            <th style={{ padding: '12px' }}>Status</th>
+                            <th style={{ padding: '12px', textAlign: 'center' }}>Acțiuni Modificare Status</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </section>
+                        </thead>
+                        <tbody>
+                          {adminAppointments.map((app) => (
+                            <tr key={app.appointment_id || app.id} style={{ borderBottom: '1px solid #eceeef' }}>
+                              <td style={{ padding: '12px', fontWeight: 'bold' }}>{app.donor_name} {app.donor_surname}</td>
+                              <td style={{ padding: '12px' }}>{app.donor_phone}</td>
+                              <td style={{ padding: '12px', fontWeight: '500' }}>{app.campaign_title}</td>
+                              <td style={{ padding: '12px' }}>
+                                {formatDateRo(app.campaign_date)} | <strong style={{ color: '#e63946' }}>{formatTimeShort(app.slot_time)}</strong>
+                              </td>
+                              <td style={{ padding: '12px' }}>
+                                <span style={{
+                                  padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold',
+                                  backgroundColor: app.status === 'confirmed' ? '#e3ffe3' : app.status === 'attended' ? '#d1e7dd' : '#fff3cd',
+                                  color: app.status === 'confirmed' ? '#198754' : app.status === 'attended' ? '#0f5132' : '#856404'
+                                }}>
+                                  {app.status === 'confirmed' ? 'Confirmată' : app.status === 'attended' ? 'Prezent ✓' : 'Absent ✗'}
+                                </span>
+                              </td>
+                              <td style={{ padding: '12px', display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                                <button onClick={() => handleMarkAttendance(app.appointment_id || app.id)} disabled={app.status === 'attended'} style={{ padding: '6px 10px', backgroundColor: app.status === 'attended' ? '#ccc' : '#198754', color: 'white', border: 'none', borderRadius: '4px', cursor: app.status === 'attended' ? 'not-allowed' : 'pointer', fontSize: '11px', fontWeight: 'bold' }}>Prezent</button>
+                                <button onClick={() => handleMarkNoShow(app.appointment_id || app.id)} disabled={app.status === 'no_show'} style={{ padding: '6px 10px', backgroundColor: app.status === 'no_show' ? '#ccc' : '#ffc107', color: '#333', border: 'none', borderRadius: '4px', cursor: app.status === 'no_show' ? 'not-allowed' : 'pointer', fontSize: '11px', fontWeight: 'bold' }}>Absent</button>
+                                <button onClick={() => handleCancelClick(app.appointment_id || app.id)} style={{ padding: '6px 10px', backgroundColor: '#fff', border: '1px solid #dc3545', color: '#dc3545', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}>Anulează</button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </section>
+
+                {/* CENTRALIZATOR WAITLIST (DOAR ADMIN) */}
+                <section style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: '40px', border: '1px solid #e1e4e8' }}>
+                  <h3 style={{ margin: '0 0 20px 0', color: '#2b2d42', borderBottom: '2px solid #f1f3f5', paddingBottom: '10px' }}>
+                    📝 Centralizator Listă de Așteptare (Waitlist Inteligent) [cite: 124, 184]
+                  </h3>
+                  {adminWaitlist.length === 0 ? (
+                    <p style={{ color: '#666', fontStyle: 'italic' }}>Nu există nicio persoană înscrisă în lista de așteptare.</p>
+                  ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                        <thead>
+                          <tr style={{ backgroundColor: '#f8f9fa', borderBottom: '2px solid #dee2e6' }}>
+                            <th style={{ padding: '12px' }}>Donator</th>
+                            <th style={{ padding: '12px' }}>Telefon / Email</th>
+                            <th style={{ padding: '12px' }}>Campanie Alocată</th>
+                            <th style={{ padding: '12px' }}>Interval Preferat</th>
+                            <th style={{ padding: '12px' }}>Timp Deplasare</th>
+                            <th style={{ padding: '12px' }}>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {adminWaitlist.map((wait) => (
+                            <tr key={wait.id} style={{ borderBottom: '1px solid #eceeef' }}>
+                              <td style={{ padding: '12px', fontWeight: 'bold' }}>{wait.name} {wait.surname}</td>
+                              <td style={{ padding: '12px', fontSize: '13px' }}>
+                                <div>📞 {wait.phone}</div>
+                                <div style={{ color: '#666' }}>✉️ {wait.email}</div>
+                              </td>
+                              <td style={{ padding: '12px', fontWeight: '500' }}>{wait.campaign_title}</td>
+                              <td style={{ padding: '12px', fontWeight: 'bold', color: '#e63946' }}>{wait.preferred_time_range}</td>
+                              <td style={{ padding: '12px' }}>⏱️ {wait.travel_time_minutes} min</td>
+                              <td style={{ padding: '12px' }}>
+                                <span style={{
+                                  padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold',
+                                  backgroundColor: '#fff3cd', color: '#856404'
+                                }}>
+                                  În așteptare
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </section>
+              </>
             )}
 
             {/* SECȚIUNEA DE JOS: FORMULAR + LISTARE CAMPANII */}
@@ -369,7 +425,25 @@ function Dashboard({ onLogout }) {
         )}
       </div>
 
-      {selectedCampaign && <AppointmentModal campaign={selectedCampaign} onClose={() => setSelectedCampaign(null)} onRefresh={fetchData} />}
+      {selectedCampaign && (
+        <AppointmentModal 
+          campaign={selectedCampaign} 
+          onClose={() => setSelectedCampaign(null)} 
+          onRefresh={fetchData} 
+          onOpenWaitlist={(camp) => {
+            setSelectedCampaign(null);
+            setWaitlistCampaign(camp);
+          }}
+        />
+      )}
+
+      {waitlistCampaign && (
+        <WaitlistModal 
+          campaign={waitlistCampaign} 
+          onClose={() => setWaitlistCampaign(null)} 
+          onRefresh={fetchData} 
+        />
+      )}
 
       {appointmentToCancel && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1500 }}>

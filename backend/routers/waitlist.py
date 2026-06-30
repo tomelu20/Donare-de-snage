@@ -39,3 +39,24 @@ def add_to_waitlist(waitlist_data: WaitlistCreate, db: Session = Depends(get_db)
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Eroare la salvarea în baza de date: {str(e)}"
         )
+    
+@router.get("/all", status_code=status.HTTP_200_OK)
+def get_all_waitlist_for_admin(db: Session = Depends(get_db)):
+    query = text("""
+        SELECT 
+            w.id,
+            w.name,
+            w.surname,
+            w.phone,
+            w.email,
+            w.preferred_time_range,
+            w.travel_time_minutes,
+            w.status,
+            c.title AS campaign_title,
+            c.date AS campaign_date
+        FROM waitlist w
+        JOIN campaigns c ON w.campaign_id = c.id
+        ORDER BY c.date ASC
+    """)
+    result = db.execute(query).mappings().all()
+    return result

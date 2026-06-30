@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-function AppointmentModal({ campaign, onClose, onRefresh }) {
+function AppointmentModal({ campaign, onClose, onRefresh, onOpenWaitlist }) { // <-- Adăugat onOpenWaitlist
   const [slots, setSlots] = useState([]);
-  // Modificăm selectedSlot să salveze un obiect sau un string unic compus din Dată + Oră
   const [selectedSlot, setSelectedSlot] = useState({ date: '', time: '' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -35,7 +34,6 @@ function AppointmentModal({ campaign, onClose, onRefresh }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  // Grupăm sloturile primite după dată
   const groupedSlots = slots.reduce((acc, slot) => {
     if (!acc[slot.date]) {
       acc[slot.date] = [];
@@ -44,7 +42,6 @@ function AppointmentModal({ campaign, onClose, onRefresh }) {
     return acc;
   }, {});
 
-  // Funcție ajutătoare pentru a formata data frumos (ex: "10 Octombrie 2026" sau doar data text)
   const formatDateLabel = (dateStr, index) => {
     const dateObj = new Date(dateStr);
     const options = { day: 'numeric', month: 'long', year: 'numeric' };
@@ -70,12 +67,11 @@ function AppointmentModal({ campaign, onClose, onRefresh }) {
     }
 
     try {
-      // Trimitem selecția către backend (dacă backend-ul tău cere și data, o trimitem în corp)
       await axios.post('http://127.0.0.1:8000/appointments/', {
         campaign_id: campaign.id,
         slot_time: selectedSlot.time,
         user_id: user.id,
-        appointment_date: selectedSlot.date // Adăugat pentru campanii multi-day
+        appointment_date: selectedSlot.date
       });
 
       setSuccess('Programare realizată cu succes!');
@@ -112,11 +108,9 @@ function AppointmentModal({ campaign, onClose, onRefresh }) {
                 Locație: <strong>{campaign.location_name}</strong> ({campaign.address})
               </p>
               
-              {/* Iterăm prin fiecare zi generată de backend */}
               {Object.keys(groupedSlots).map((dateKey, dayIndex) => (
                 <div key={dateKey} style={{ marginBottom: '20px', borderBottom: Object.keys(groupedSlots).length > 1 ? '1px dashed #eee' : 'none', paddingBottom: '10px' }}>
                   
-                  {/* Afișăm eticheta de Zi doar dacă campania are mai mult de o zi */}
                   {Object.keys(groupedSlots).length > 1 && (
                     <h4 style={{ margin: '10px 0', color: '#333', fontSize: '14px', backgroundColor: '#f8f9fa', padding: '5px' }}>
                       {formatDateLabel(dateKey, dayIndex)}
@@ -157,7 +151,15 @@ function AppointmentModal({ campaign, onClose, onRefresh }) {
               ))}
             </div>
 
+            {/* ZONA BUTOANELOR - Păstrată intactă și extinsă cu opțiunea de Waitlist */}
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', borderTop: '1px solid #eee', paddingTop: '15px' }}>
+              <button 
+                type="button"
+                onClick={() => onOpenWaitlist(campaign)}
+                style={{ padding: '8px 15px', backgroundColor: '#2b2d42', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', marginRight: 'auto' }}
+              >
+                Înscriere Waitlist
+              </button>
               <button 
                 type="button" 
                 onClick={onClose} 
