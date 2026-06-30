@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from datetime import date, time, datetime
+from datetime import date as datetime_date, time, datetime  # <--- MODIFICAT: date importat ca datetime_date
 from typing import Optional, List
 
 class UserCreate(BaseModel):
@@ -25,11 +25,14 @@ class UserOut(BaseModel):
 
     model_config = {"from_attributes": True}
 
+# Clasele tale din schemas.py fără erori de shadowing:
+
 class CampaignCreate(BaseModel):
     title: str
     location_name: str
     address: str
-    date: date
+    date: datetime_date  # <--- Folosește noul alias
+    end_date: Optional[datetime_date] = None  
     start_time: time
     end_time: time
     slot_duration: int
@@ -40,7 +43,8 @@ class CampaignOut(BaseModel):
     title: str
     location_name: str
     address: str
-    date: date
+    date: datetime_date  # <--- Folosește noul alias
+    end_date: Optional[datetime_date] = None  
     start_time: time
     end_time: time
     slot_duration: int

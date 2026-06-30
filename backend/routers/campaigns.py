@@ -27,6 +27,7 @@ def create_campaign(campaign_data: CampaignCreate, db: Session = Depends(get_db)
         location_name=campaign_data.location_name,
         address=campaign_data.address,
         date=campaign_data.date,
+        end_date=campaign_data.end_date,
         start_time=campaign_data.start_time,
         end_time=campaign_data.end_time,
         slot_duration=campaign_data.slot_duration,

@@ -48,15 +48,15 @@ class Campaign(Base):
     location_name = Column(String(255), nullable=False)
     address = Column(String(255), nullable=False)
     date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=True)
     start_time = Column(Time, nullable=False)
-    end_time = Column(Time, nullable=False)
+    end_time = Column(Time, nullable=False)  # <--- MODIFICAT: Am adăugat coloana lipsă
     slot_duration = Column(Integer, nullable=False)
     capacity_per_slot = Column(Integer, nullable=False)
     is_active = Column(Boolean, nullable=False, default=True)
     
     appointments = relationship("Appointment", back_populates="campaign", cascade="all, delete-orphan")
     waitlist_entries = relationship("Waitlist", back_populates="campaign", cascade="all, delete-orphan")
-
 
 class Appointment(Base):
     __tablename__ = 'appointments'
