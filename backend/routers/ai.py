@@ -35,8 +35,8 @@ def chat_with_assistant(payload: ChatMessage):
             model='gemini-2.5-flash',
             contents=payload.message,
             config=types.GenerateContentConfig(
-                max_output_tokens=400,
-                temperature=0.6,
+                max_output_tokens=1000,
+                temperature=0.4,
                 system_instruction=(
                     "Ești asistentul virtual inteligent numit 'G4 AI' integrat în Platforma Digitală de Donare Sânge. "
                     "Misiunea ta este să ajuți donatorii cu informații calde, sigure, precise și optimiste despre proces. "
