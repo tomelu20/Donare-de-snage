@@ -11,6 +11,48 @@ router = APIRouter(
 
 @router.post("/", response_model=WaitlistOut, status_code=status.HTTP_201_CREATED)
 def add_to_waitlist(waitlist_data: WaitlistCreate, db: Session = Depends(get_db)):
+    
+    # ------------------------------------------------------------------------
+    # VALIDARE ABSOLUTĂ: Verificăm dacă are deja o programare activă în campanie
+    # ------------------------------------------------------------------------
+    appointment_check_query = text("""
+        SELECT COUNT(id) AS existing_appointments 
+        FROM appointments 
+        WHERE user_id = :user_id 
+          AND campaign_id = :campaign_id 
+          AND status IN ('confirmed', 'attended')
+    """)
+    appointment_check = db.execute(appointment_check_query, {
+        "user_id": waitlist_data.user_id,
+        "campaign_id": waitlist_data.campaign_id
+    }).fetchone()
+
+    if appointment_check.existing_appointments > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ai deja o programare activă confirmată în această campanie! Nu te poți înscrie în lista de așteptare."
+        )
+
+    # Verificăm și dacă este deja înscris în waitlist pentru aceeași campanie (opțional, pentru siguranță completă)
+    waitlist_check_query = text("""
+        SELECT COUNT(id) AS existing_waitlist 
+        FROM waitlist 
+        WHERE user_id = :user_id 
+          AND campaign_id = :campaign_id 
+          AND status = 'waiting'
+    """)
+    waitlist_check = db.execute(waitlist_check_query, {
+        "user_id": waitlist_data.user_id,
+        "campaign_id": waitlist_data.campaign_id
+    }).fetchone()
+
+    if waitlist_check.existing_waitlist > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ești deja înscris în lista de așteptare pentru această campanie."
+        )
+    # ------------------------------------------------------------------------
+
     # Inserare SQL nativă în tabela 'waitlist' conform structurii din tables.sql
     insert_query = text("""
         INSERT INTO waitlist (campaign_id, user_id, name, surname, phone, email, preferred_time_range, travel_time_minutes, status)
@@ -39,12 +81,14 @@ def add_to_waitlist(waitlist_data: WaitlistCreate, db: Session = Depends(get_db)
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Eroare la salvarea în baza de date: {str(e)}"
         )
-    
+
 @router.get("/all", status_code=status.HTTP_200_OK)
 def get_all_waitlist_for_admin(db: Session = Depends(get_db)):
+    # MODIFICAT: Am adăugat w.campaign_id în SELECT-ul de mai jos
     query = text("""
         SELECT 
             w.id,
+            w.campaign_id,
             w.name,
             w.surname,
             w.phone,
@@ -60,3 +104,41 @@ def get_all_waitlist_for_admin(db: Session = Depends(get_db)):
     """)
     result = db.execute(query).mappings().all()
     return result
+
+
+# RUTA NOUĂ: Procesează asignarea din modalul grafic
+@router.post("/{id}/assign", status_code=status.HTTP_200_OK)
+def assign_waitlist_to_appointment(id: int, slot_time: str, db: Session = Depends(get_db)):
+    # 1. Preluăm înregistrarea din waitlist ca să știm user_id și campaign_id
+    wait_query = text("SELECT campaign_id, user_id FROM waitlist WHERE id = :wait_id")
+    wait_entry = db.execute(wait_query, {"wait_id": id}).fetchone()
+    
+    if not wait_entry:
+        raise HTTPException(status_code=404, detail="Înregistrarea din lista de așteptare nu există.")
+
+    try:
+        # 2. Inserăm direct în tabela appointments ca programare confirmată
+        insert_app_query = text("""
+            INSERT INTO appointments (campaign_id, user_id, slot_time, status, created_at)
+            VALUES (:camp_id, :user_id, :slot_time, 'confirmed', GETDATE())
+        """)
+        db.execute(insert_app_query, {
+            "camp_id": wait_entry.campaign_id,
+            "user_id": wait_entry.user_id,
+            "slot_time": slot_time
+        })
+
+        # 3. Modificăm statusul persoanei în tabela 'waitlist' din 'waiting' în 'accepted'
+        update_wait_query = text("""
+            UPDATE waitlist 
+            SET status = 'accepted' 
+            WHERE id = :wait_id
+        """)
+        db.execute(update_wait_query, {"wait_id": id})
+        
+        db.commit()
+        return {"message": "Donatorul a fost asignat cu succes pe slotul ales!"}
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Eroare la procesarea asignării în baza de date: {str(e)}")

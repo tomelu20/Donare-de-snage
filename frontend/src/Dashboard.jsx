@@ -10,17 +10,18 @@ function Dashboard({ onLogout }) {
   const [campaigns, setCampaigns] = useState([]); 
   const [myAppointments, setMyAppointments] = useState([]); 
   const [adminAppointments, setAdminAppointments] = useState([]); 
-  const [adminWaitlist, setAdminWaitlist] = useState([]); // <-- State nou pentru waitlist admin
+  const [adminWaitlist, setAdminWaitlist] = useState([]); // <-- State nou pentru waitlist admin[cite: 1]
   
   const [loading, setLoading] = useState(true); 
   const [apiError, setApiError] = useState(''); 
   const [selectedCampaign, setSelectedCampaign] = useState(null); 
   const [waitlistCampaign, setWaitlistCampaign] = useState(null); 
+  const [assignModalData, setAssignModalData] = useState(null); // <-- State pentru controlul modalului de asignare din waitlist
 
   const [appointmentToCancel, setAppointmentToCancel] = useState(null); 
   const [successNotification, setSuccessNotification] = useState(''); 
 
-  // State-uri pentru Formularul de Campanie Nouă (Admin)
+  // State-uri pentru Formularul de Campanie Nouă (Admin)[cite: 1]
   const [newCampTitle, setNewCampTitle] = useState('');
   const [newCampLocation, setNewCampLocation] = useState('');
   const [newCampAddress, setNewCampAddress] = useState('');
@@ -37,16 +38,16 @@ function Dashboard({ onLogout }) {
       setLoading(true);
       setApiError('');
 
-      // 1. Preluăm toate campaniile active
+      // 1. Preluăm toate campaniile active[cite: 1]
       const campaignsRes = await axios.get('http://127.0.0.1:8000/campaigns/');
       setCampaigns(campaignsRes.data);
 
-      // 2. În funcție de rol, apelăm rutele specifice din backend
-      if (user.role === 'admin' || user.role === 'ADMIN') {
+      // 2. În funcție de rol, apelăm rutele specifice din backend[cite: 1]
+      if (user.role === 'admin' || user.role === 'ADMIN' ? true : false) {
         const adminAppsRes = await axios.get('http://127.0.0.1:8000/appointments/all');
         setAdminAppointments(adminAppsRes.data);
 
-        // Preluăm înscrierile din waitlist pentru admin [cite: 183]
+        // Preluăm înscrierile din waitlist pentru admin[cite: 1]
         const adminWaitlistRes = await axios.get('http://127.0.0.1:8000/waitlist/all');
         setAdminWaitlist(adminWaitlistRes.data);
       } else {
@@ -161,6 +162,14 @@ function Dashboard({ onLogout }) {
     }
   };
 
+  // Desfășoară logica de deschidere a tabelului orar pentru asignare directă
+  const handleAssignWaitlist = (waitId, campaignId, campaignTitle) => {
+    setAssignModalData({
+      campaign: { id: campaignId, title: campaignTitle },
+      waitlistId: waitId
+    });
+  };
+
   const formatDateRo = (dateString) => {
     if (!dateString) return '';
     const parts = dateString.split('-');
@@ -263,7 +272,7 @@ function Dashboard({ onLogout }) {
                 {/* CENTRALIZATOR WAITLIST (DOAR ADMIN) */}
                 <section style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: '40px', border: '1px solid #e1e4e8' }}>
                   <h3 style={{ margin: '0 0 20px 0', color: '#2b2d42', borderBottom: '2px solid #f1f3f5', paddingBottom: '10px' }}>
-                    📝 Centralizator Listă de Așteptare (Waitlist Inteligent) [cite: 124, 184]
+                    📝 Centralizator Listă de Așteptare (Waitlist Inteligent)[cite: 1]
                   </h3>
                   {adminWaitlist.length === 0 ? (
                     <p style={{ color: '#666', fontStyle: 'italic' }}>Nu există nicio persoană înscrisă în lista de așteptare.</p>
@@ -278,6 +287,7 @@ function Dashboard({ onLogout }) {
                             <th style={{ padding: '12px' }}>Interval Preferat</th>
                             <th style={{ padding: '12px' }}>Timp Deplasare</th>
                             <th style={{ padding: '12px' }}>Status</th>
+                            <th style={{ padding: '12px', textAlign: 'center' }}>Acțiuni</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -294,10 +304,29 @@ function Dashboard({ onLogout }) {
                               <td style={{ padding: '12px' }}>
                                 <span style={{
                                   padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold',
-                                  backgroundColor: '#fff3cd', color: '#856404'
+                                  backgroundColor: wait.status === 'accepted' ? '#d1e7dd' : '#fff3cd', 
+                                  color: wait.status === 'accepted' ? '#0f5132' : '#856404'
                                 }}>
-                                  În așteptare
+                                  {wait.status === 'waiting' ? 'În așteptare' : wait.status === 'accepted' ? 'Asignat ✓' : wait.status}
                                 </span>
+                              </td>
+                              <td style={{ padding: '12px', textAlign: 'center' }}>
+                                <button 
+                                  onClick={() => handleAssignWaitlist(wait.id, wait.campaign_id, wait.campaign_title)}
+                                  disabled={wait.status === 'accepted'}
+                                  style={{ 
+                                    padding: '6px 12px', 
+                                    backgroundColor: wait.status === 'accepted' ? '#ccc' : '#e63946', 
+                                    color: 'white', 
+                                    border: 'none', 
+                                    borderRadius: '4px', 
+                                    cursor: wait.status === 'accepted' ? 'not-allowed' : 'pointer', 
+                                    fontSize: '11px', 
+                                    fontWeight: 'bold' 
+                                  }}
+                                >
+                                  Asignează
+                                </button>
                               </td>
                             </tr>
                           ))}
@@ -434,6 +463,16 @@ function Dashboard({ onLogout }) {
             setSelectedCampaign(null);
             setWaitlistCampaign(camp);
           }}
+        />
+      )}
+
+      {assignModalData && (
+        <AppointmentModal 
+          campaign={assignModalData.campaign}
+          waitlistId={assignModalData.waitlistId}
+          isAssigningFromWaitlist={true}
+          onClose={() => setAssignModalData(null)} 
+          onRefresh={fetchData} 
         />
       )}
 

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-function AppointmentModal({ campaign, onClose, onRefresh, onOpenWaitlist }) { // <-- Adăugat onOpenWaitlist
+// Adăugat prop-ul optional `isAssigningFromWaitlist` și `waitlistId`
+function AppointmentModal({ campaign, onClose, onRefresh, onOpenWaitlist, isAssigningFromWaitlist = false, waitlistId = null }) { 
   const [slots, setSlots] = useState([]);
   const [selectedSlot, setSelectedSlot] = useState({ date: '', time: '' });
   const [loading, setLoading] = useState(true);
@@ -58,23 +59,30 @@ function AppointmentModal({ campaign, onClose, onRefresh, onOpenWaitlist }) { //
       return;
     }
 
-    const savedUser = sessionStorage.getItem('user_session');
-    const user = savedUser ? JSON.parse(savedUser) : null;
-
-    if (!user || !user.id) {
-      setError('Eroare: Utilizatorul nu este autentificat corect.');
-      return;
-    }
-
     try {
-      await axios.post('http://127.0.0.1:8000/appointments/', {
-        campaign_id: campaign.id,
-        slot_time: selectedSlot.time,
-        user_id: user.id,
-        appointment_date: selectedSlot.date
-      });
+      if (isAssigningFromWaitlist) {
+        // --- LOGICĂ ASIGNARE ADMIN DIN WAITLIST ---
+        await axios.post(`http://127.0.0.1:8000/waitlist/${waitlistId}/assign?slot_time=${selectedSlot.time}`);
+        setSuccess('Donatorul din lista de așteptare a fost asignat cu succes!');
+      } else {
+        // --- LOGICĂ REZERVARE STANDARD DONATOR ---
+        const savedUser = sessionStorage.getItem('user_session');
+        const user = savedUser ? JSON.parse(savedUser) : null;
 
-      setSuccess('Programare realizată cu succes!');
+        if (!user || !user.id) {
+          setError('Eroare: Utilizatorul nu este autentificat corect.');
+          return;
+        }
+
+        await axios.post('http://127.0.0.1:8000/appointments/', {
+          campaign_id: campaign.id,
+          slot_time: selectedSlot.time,
+          user_id: user.id,
+          appointment_date: selectedSlot.date
+        });
+        setSuccess('Programare realizată cu succes!');
+      }
+
       if (onRefresh) onRefresh();
       setTimeout(() => {
         onClose();
@@ -85,11 +93,13 @@ function AppointmentModal({ campaign, onClose, onRefresh, onOpenWaitlist }) { //
   };
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000 }}>
       <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', maxWidth: '550px', width: '90%', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 4px 20px rgba(0,0,0,0.2)', fontFamily: 'sans-serif' }}>
         
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: '10px', marginBottom: '15px' }}>
-          <h3 style={{ margin: 0, color: '#e63946' }}>Programare: {campaign.title}</h3>
+          <h3 style={{ margin: 0, color: '#e63946' }}>
+            {isAssigningFromWaitlist ? `Asignare Waitlist: ${campaign.title}` : `Programare: ${campaign.title}`}
+          </h3>
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#999' }}>&times;</button>
         </div>
 
@@ -98,7 +108,7 @@ function AppointmentModal({ campaign, onClose, onRefresh, onOpenWaitlist }) { //
         {error && <p style={{ color: 'red', backgroundColor: '#ffe3e3', padding: '10px', borderRadius: '4px', fontSize: '14px' }}>{error}</p>}
         {success && <p style={{ color: 'green', backgroundColor: '#e3ffe3', padding: '10px', borderRadius: '4px', fontSize: '14px', fontWeight: 'bold' }}>{success}</p>}
 
-        {!loading && slots.length === 0 && <p style={{ color: '#666' }}>Nu există intervale orare disponibile pentru această campanie.</p>}
+        {!loading && slots.length === 0 && <p style={{ color: '#666' }}>Nu există intervale orare disponibile.</p>}
 
         {!loading && slots.length > 0 && (
           <form onSubmit={handleConfirmAppointment}>
@@ -151,27 +161,31 @@ function AppointmentModal({ campaign, onClose, onRefresh, onOpenWaitlist }) { //
               ))}
             </div>
 
-            {/* ZONA BUTOANELOR - Păstrată intactă și extinsă cu opțiunea de Waitlist */}
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', borderTop: '1px solid #eee', paddingTop: '15px' }}>
-              <button 
-                type="button"
-                onClick={() => onOpenWaitlist(campaign)}
-                style={{ padding: '8px 15px', backgroundColor: '#2b2d42', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', marginRight: 'auto' }}
-              >
-                Înscriere Waitlist
-              </button>
+              {/* Afișăm butonul de înscriere în waitlist doar dacă nu suntem deja în fluxul de asignare din waitlist */}
+              {!isAssigningFromWaitlist && (
+                <button 
+                  type="button"
+                  onClick={() => onOpenWaitlist(campaign)}
+                  style={{ padding: '8px 15px', backgroundColor: '#2b2d42', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', marginRight: 'auto' }}
+                >
+                  Înscriere Waitlist
+                </button>
+              )}
+              
               <button 
                 type="button" 
                 onClick={onClose} 
                 style={{ padding: '8px 15px', backgroundColor: '#fff', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer' }}
               >
-                Închide fereastra
+                Anulează
               </button>
+              
               <button 
                 type="submit" 
-                style={{ padding: '8px 15px', backgroundColor: '#e63946', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                style={{ padding: '8px 15px', backgroundColor: isAssigningFromWaitlist ? '#198754' : '#e63946', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
               >
-                Confirmă Rezervarea
+                {isAssigningFromWaitlist ? 'Confirmă Asignarea Oreis' : 'Confirmă Rezervarea'}
               </button>
             </div>
           </form>
