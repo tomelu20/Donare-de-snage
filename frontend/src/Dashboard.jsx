@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import AppointmentModal from './AppointmentModal'; 
 import WaitlistModal from './WaitlistModal'; 
+import AIChatbox from './AIChatbox';
 
 function Dashboard({ onLogout }) {
   const savedUser = sessionStorage.getItem('user_session'); 
@@ -496,6 +497,8 @@ function Dashboard({ onLogout }) {
           </div>
         </div>
       )}
+      {/* CHATBOX INTELIGENT CONECTAT LA LLM */}
+      <AIChatbox />
     </div>
   );
 }
