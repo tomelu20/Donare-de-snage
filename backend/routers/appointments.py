@@ -16,13 +16,13 @@ def create_appointment(appointment_data: AppointmentCreate, db: Session = Depend
     current_user_id = appointment_data.user_id
 
     # ------------------------------------------------------------------------
-    # VALIDARE: VERIFICARE DUPLICARE PROGRAMARE (SĂ NU POATĂ REZERVA 10 SLOTURI)
+    # VALIDARE: VERIFICARE DUPLICARE PROGRAMARE (SECURIZATĂ PENTRU CONTURI ȘI INVITAȚI)
     # ------------------------------------------------------------------------
     if appointment_data.is_for_someone_else:
-        # Dacă este pentru altcineva, verificăm unicitatea pe baza telefonului invitatului în această campanie
         if not appointment_data.guest_phone:
             raise HTTPException(status_code=400, detail="Numărul de telefon al persoanei programate este obligatoriu.")
             
+        # 1. Verificăm dacă există deja o altă programare de tip INVITE cu acest număr de telefon
         guest_check_query = text("""
             SELECT COUNT(id) AS existing_count 
             FROM appointments 
@@ -38,10 +38,33 @@ def create_appointment(appointment_data: AppointmentCreate, db: Session = Depend
         if guest_check.existing_count > 0:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Persoana cu numărul de telefon {appointment_data.guest_phone} are deja o programare activă în această campanie!"
+                detail=f"Persoana cu numărul de telefon {appointment_data.guest_phone} are deja o programare activă ca invitat în această campanie!"
             )
+
+        # 2. CAZUL NOU DIN IMAGINE: Verificăm dacă numărul aparține unui cont înregistrat (ex: Popescu Ion) 
+        # și dacă acel cont are deja o programare personală activă în campanie.
+        account_holder_check_query = text("""
+            SELECT COUNT(a.id) AS existing_count
+            FROM appointments a
+            JOIN users u ON a.user_id = u.id
+            WHERE a.campaign_id = :camp_id
+              AND u.phone = :guest_phone
+              AND a.is_for_someone_else = 0
+              AND a.status IN ('confirmed', 'attended')
+        """)
+        account_holder_check = db.execute(account_holder_check_query, {
+            "camp_id": appointment_data.campaign_id,
+            "guest_phone": appointment_data.guest_phone
+        }).fetchone()
+
+        if account_holder_check.existing_count > 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Această persoană deține un cont în aplicație și este deja programată personal la această campanie!"
+            )
+            
     else:
-        # Logica standard pentru utilizatorul logat
+        # Logica standard: Utilizatorul curent dorește să se programeze pe el însuși
         user_check_query = text("""
             SELECT COUNT(id) AS existing_count 
             FROM appointments 
@@ -61,7 +84,33 @@ def create_appointment(appointment_data: AppointmentCreate, db: Session = Depend
                 detail="Ai deja o programare activă în această campanie! Te poți programa în alte campanii, dar doar o singură dată per locație."
             )
 
-    # 1. VERIFICARE CAPACITATE CAMPANIE
+        # 3. CAZUL INVERS: Verificăm dacă cineva nu l-a programat deja pe utilizatorul curent ca invitat (folosind telefonul lui din profil)
+        user_profile_query = text("SELECT phone FROM users WHERE id = :user_id")
+        user_profile = db.execute(user_profile_query, {"user_id": current_user_id}).fetchone()
+        
+        if user_profile:
+            already_invited_check_query = text("""
+                SELECT COUNT(id) AS existing_count
+                FROM appointments
+                WHERE campaign_id = :camp_id
+                  AND guest_phone = :user_phone
+                  AND is_for_someone_else = 1
+                  AND status IN ('confirmed', 'attended')
+            """)
+            already_invited_check = db.execute(already_invited_check_query, {
+                "camp_id": appointment_data.campaign_id,
+                "user_phone": user_profile.phone
+            }).fetchone()
+
+            if already_invited_check.existing_count > 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Nu te poți programa deoarece un alt utilizator te-a înscris deja ca invitat în această campanie!"
+                )
+
+    # ------------------------------------------------------------------------
+    # RESTUL LOGICII DE INSERARE RĂMÂNE NESCHIMBAT
+    # ------------------------------------------------------------------------
     campaign_query = text("SELECT capacity_per_slot, is_active FROM campaigns WHERE id = :camp_id")
     campaign = db.execute(campaign_query, {"camp_id": appointment_data.campaign_id}).fetchone()
     
@@ -70,7 +119,6 @@ def create_appointment(appointment_data: AppointmentCreate, db: Session = Depend
     if not campaign.is_active:
         raise HTTPException(status_code=400, detail="Această campanie nu mai este activă.")
 
-    # 2. VERIFICARE SLOT DISPONIBIL PE DATA ȘI ORA SELECTATĂ
     count_query = text("""
         SELECT COUNT(id) AS booked 
         FROM appointments 
@@ -88,7 +136,6 @@ def create_appointment(appointment_data: AppointmentCreate, db: Session = Depend
     if booked_result.booked >= campaign.capacity_per_slot:
         raise HTTPException(status_code=400, detail="Ne pare rău, acest interval orar s-a ocupat între timp!")
 
-    # 3. INSERARE ÎN BAZA DE DATE (Includem noile câmpuri)
     insert_query = text("""
         INSERT INTO appointments (
             campaign_id, user_id, slot_time, appointment_date, status, created_at,
@@ -155,16 +202,14 @@ def get_my_appointments(user_id: int, db: Session = Depends(get_db)):
     return result
 
 @router.get("/all", status_code=status.HTTP_200_OK)
-def get_all_appointments_admin(db: Session = Depends(get_db)):
-    # Modificăm query-ul pentru a selecta dinamic numele și telefonul în funcție de câmpul is_for_someone_else
+def get_all_appointments_for_admin(db: Session = Depends(get_db)):
     query = text("""
         SELECT 
-            a.id,
-            a.campaign_id,
-            a.user_id,
+            a.id AS appointment_id,
             a.slot_time,
             a.status,
-            a.created_at,
+            -- Corecție importantă: Tritem data reală a programării (ex: 22 aprilie), nu data de început a campaniei!
+            a.appointment_date AS campaign_date, 
             CASE 
                 WHEN a.is_for_someone_else = 1 THEN a.guest_name 
                 ELSE u.name 
@@ -177,13 +222,12 @@ def get_all_appointments_admin(db: Session = Depends(get_db)):
                 WHEN a.is_for_someone_else = 1 THEN a.guest_phone 
                 ELSE u.phone 
             END AS donor_phone,
-            c.title AS campaign_title,
-            c.date AS campaign_date
+            c.title AS campaign_title
         FROM appointments a
         JOIN users u ON a.user_id = u.id
         JOIN campaigns c ON a.campaign_id = c.id
         WHERE a.status != 'cancelled'
-        ORDER BY c.date ASC, a.slot_time ASC
+        ORDER BY a.appointment_date ASC, a.slot_time ASC
     """)
     result = db.execute(query).mappings().all()
     return result

@@ -62,13 +62,13 @@ function WaitlistModal({ campaign, onClose, onRefresh }) {
             </p>
 
             <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', fontWeight: 'bold' }}>Interval orar preferat:</label>
+              <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', fontWeight: 'bold' }}>Ziua si intervalul orar preferat:</label>
               <input 
                 type="text" 
                 value={preferredTime} 
                 onChange={(e) => setPreferredTime(e.target.value)} 
                 required 
-                placeholder="Ex: 09:00 - 11:00 sau Oricând" 
+                placeholder="Ex: 22 Aprilie 09 - 11 sau Oricând" 
                 style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }}
               />
             </div>

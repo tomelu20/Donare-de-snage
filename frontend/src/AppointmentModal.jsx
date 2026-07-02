@@ -245,7 +245,7 @@ function AppointmentModal({ campaign, onClose, onRefresh, onOpenWaitlist, isAssi
                 type="submit" 
                 style={{ padding: '8px 15px', backgroundColor: isAssigningFromWaitlist ? '#198754' : '#e63946', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
               >
-                {isAssigningFromWaitlist ? 'Confirmă Asignarea Oreis' : 'Confirmă Rezervarea'}
+                {isAssigningFromWaitlist ? 'Confirmă Asignarea Orei' : 'Confirmă Rezervarea'}
               </button>
             </div>
           </form>

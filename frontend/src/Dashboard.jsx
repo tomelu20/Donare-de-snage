@@ -239,15 +239,31 @@ function Dashboard({ onLogout }) {
                             <th style={{ padding: '12px', textAlign: 'center' }}>Acțiuni Modificare Status</th>
                           </tr>
                         </thead>
+                        {/* Înlocuiește corpul tabelului din Dashboard.jsx cu această structură optimizată */}
                         <tbody>
                           {adminAppointments.map((app) => (
                             <tr key={app.appointment_id || app.id} style={{ borderBottom: '1px solid #eceeef' }}>
-                              <td style={{ padding: '12px', fontWeight: 'bold' }}>{app.donor_name} {app.donor_surname}</td>
-                              <td style={{ padding: '12px' }}>{app.donor_phone}</td>
-                              <td style={{ padding: '12px', fontWeight: '500' }}>{app.campaign_title}</td>
-                              <td style={{ padding: '12px' }}>
+      
+                              {/* Celula Donator - adăugat whiteSpace: 'nowrap' */}
+                              <td style={{ padding: '12px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                                {app.donor_name} {app.donor_surname}
+                              </td>
+      
+                              {/* Celula Telefon - adăugat whiteSpace: 'nowrap' */}
+                              <td style={{ padding: '12px', whiteSpace: 'nowrap' }}>
+                                {app.donor_phone}
+                              </td>
+      
+                              {/* Celula Campanie - adăugat whiteSpace: 'nowrap' */}
+                              <td style={{ padding: '12px', fontWeight: '500', whiteSpace: 'nowrap' }}>
+                                {app.campaign_title}
+                              </td>
+      
+                              {/* Celula Dată & Oră - adăugat whiteSpace: 'nowrap' */}
+                              <td style={{ padding: '12px', whiteSpace: 'nowrap' }}>
                                 {formatDateRo(app.campaign_date)} | <strong style={{ color: '#e63946' }}>{formatTimeShort(app.slot_time)}</strong>
                               </td>
+      
                               <td style={{ padding: '12px' }}>
                                 <span style={{
                                   padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold',
@@ -257,11 +273,13 @@ function Dashboard({ onLogout }) {
                                   {app.status === 'confirmed' ? 'Confirmată' : app.status === 'attended' ? 'Prezent ✓' : 'Absent ✗'}
                                 </span>
                               </td>
+      
                               <td style={{ padding: '12px', display: 'flex', gap: '8px', justifyContent: 'center' }}>
                                 <button onClick={() => handleMarkAttendance(app.appointment_id || app.id)} disabled={app.status === 'attended'} style={{ padding: '6px 10px', backgroundColor: app.status === 'attended' ? '#ccc' : '#198754', color: 'white', border: 'none', borderRadius: '4px', cursor: app.status === 'attended' ? 'not-allowed' : 'pointer', fontSize: '11px', fontWeight: 'bold' }}>Prezent</button>
                                 <button onClick={() => handleMarkNoShow(app.appointment_id || app.id)} disabled={app.status === 'no_show'} style={{ padding: '6px 10px', backgroundColor: app.status === 'no_show' ? '#ccc' : '#ffc107', color: '#333', border: 'none', borderRadius: '4px', cursor: app.status === 'no_show' ? 'not-allowed' : 'pointer', fontSize: '11px', fontWeight: 'bold' }}>Absent</button>
                                 <button onClick={() => handleCancelClick(app.appointment_id || app.id)} style={{ padding: '6px 10px', backgroundColor: '#fff', border: '1px solid #dc3545', color: '#dc3545', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}>Anulează</button>
                               </td>
+      
                             </tr>
                           ))}
                         </tbody>
@@ -271,71 +289,93 @@ function Dashboard({ onLogout }) {
                 </section>
 
                 {/* CENTRALIZATOR WAITLIST (DOAR ADMIN) */}
-                <section style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: '40px', border: '1px solid #e1e4e8' }}>
-                  <h3 style={{ margin: '0 0 20px 0', color: '#2b2d42', borderBottom: '2px solid #f1f3f5', paddingBottom: '10px' }}>
-                    📝 Centralizator Listă de Așteptare (Waitlist Inteligent)[cite: 1]
-                  </h3>
-                  {adminWaitlist.length === 0 ? (
-                    <p style={{ color: '#666', fontStyle: 'italic' }}>Nu există nicio persoană înscrisă în lista de așteptare.</p>
-                  ) : (
-                    <div style={{ overflowX: 'auto' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                        <thead>
-                          <tr style={{ backgroundColor: '#f8f9fa', borderBottom: '2px solid #dee2e6' }}>
-                            <th style={{ padding: '12px' }}>Donator</th>
-                            <th style={{ padding: '12px' }}>Telefon / Email</th>
-                            <th style={{ padding: '12px' }}>Campanie Alocată</th>
-                            <th style={{ padding: '12px' }}>Interval Preferat</th>
-                            <th style={{ padding: '12px' }}>Timp Deplasare</th>
-                            <th style={{ padding: '12px' }}>Status</th>
-                            <th style={{ padding: '12px', textAlign: 'center' }}>Acțiuni</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {adminWaitlist.map((wait) => (
-                            <tr key={wait.id} style={{ borderBottom: '1px solid #eceeef' }}>
-                              <td style={{ padding: '12px', fontWeight: 'bold' }}>{wait.name} {wait.surname}</td>
-                              <td style={{ padding: '12px', fontSize: '13px' }}>
-                                <div>📞 {wait.phone}</div>
-                                <div style={{ color: '#666' }}>✉️ {wait.email}</div>
-                              </td>
-                              <td style={{ padding: '12px', fontWeight: '500' }}>{wait.campaign_title}</td>
-                              <td style={{ padding: '12px', fontWeight: 'bold', color: '#e63946' }}>{wait.preferred_time_range}</td>
-                              <td style={{ padding: '12px' }}>⏱️ {wait.travel_time_minutes} min</td>
-                              <td style={{ padding: '12px' }}>
-                                <span style={{
-                                  padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold',
-                                  backgroundColor: wait.status === 'accepted' ? '#d1e7dd' : '#fff3cd', 
-                                  color: wait.status === 'accepted' ? '#0f5132' : '#856404'
-                                }}>
-                                  {wait.status === 'waiting' ? 'În așteptare' : wait.status === 'accepted' ? 'Asignat ✓' : wait.status}
-                                </span>
-                              </td>
-                              <td style={{ padding: '12px', textAlign: 'center' }}>
-                                <button 
-                                  onClick={() => handleAssignWaitlist(wait.id, wait.campaign_id, wait.campaign_title)}
-                                  disabled={wait.status === 'accepted'}
-                                  style={{ 
-                                    padding: '6px 12px', 
-                                    backgroundColor: wait.status === 'accepted' ? '#ccc' : '#e63946', 
-                                    color: 'white', 
-                                    border: 'none', 
-                                    borderRadius: '4px', 
-                                    cursor: wait.status === 'accepted' ? 'not-allowed' : 'pointer', 
-                                    fontSize: '11px', 
-                                    fontWeight: 'bold' 
-                                  }}
-                                >
-                                  Asignează
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </section>
+<section style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: '40px', border: '1px solid #e1e4e8' }}>
+  <h3 style={{ margin: '0 0 20px 0', color: '#2b2d42', borderBottom: '2px solid #f1f3f5', paddingBottom: '10px' }}>
+    📝 Centralizator Listă de Așteptare (Waitlist Inteligent)
+  </h3>
+  {adminWaitlist.length === 0 ? (
+    <p style={{ color: '#666', fontStyle: 'italic' }}>Nu există nicio persoană înscrisă în lista de așteptare.</p>
+  ) : (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+        <thead>
+          <tr style={{ backgroundColor: '#f8f9fa', borderBottom: '2px solid #dee2e6' }}>
+            <th style={{ padding: '12px', whiteSpace: 'nowrap' }}>Donator</th>
+            <th style={{ padding: '12px', whiteSpace: 'nowrap' }}>Telefon</th> {/* Modificat din Telefon / Email */}
+            <th style={{ padding: '12px', whiteSpace: 'nowrap' }}>Campanie Alocată</th>
+            <th style={{ padding: '12px', whiteSpace: 'nowrap' }}>Interval Preferat</th>
+            <th style={{ padding: '12px', whiteSpace: 'nowrap' }}>Timp Deplasare</th>
+            <th style={{ padding: '12px', whiteSpace: 'nowrap' }}>Status</th>
+            <th style={{ padding: '12px', textAlign: 'center', whiteSpace: 'nowrap' }}>Acțiuni</th>
+          </tr>
+        </thead>
+        <tbody>
+          {adminWaitlist.map((wait) => (
+            <tr key={wait.id} style={{ borderBottom: '1px solid #eceeef' }}>
+              
+              {/* Celula Donator */}
+              <td style={{ padding: '12px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                {wait.name} {wait.surname}
+              </td>
+              
+              {/* Celula Telefon (Afișează doar telefonul acum, pe un singur rând) */}
+              <td style={{ padding: '12px', fontSize: '14px', whiteSpace: 'nowrap' }}>
+                📞 {wait.phone}
+              </td>
+              
+              {/* Celula Campanie */}
+              <td style={{ padding: '12px', fontWeight: '500', whiteSpace: 'nowrap' }}>
+                {wait.campaign_title}
+              </td>
+              
+              {/* Celula Interval Preferat */}
+              <td style={{ padding: '12px', fontWeight: 'bold', color: '#e63946', whiteSpace: 'nowrap' }}>
+                {wait.preferred_time_range}
+              </td>
+              
+              {/* Celula Timp Deplasare */}
+              <td style={{ padding: '12px', whiteSpace: 'nowrap' }}>
+                ⏱️ {wait.travel_time_minutes} min
+              </td>
+              
+              {/* Celula Status */}
+              <td style={{ padding: '12px', whiteSpace: 'nowrap' }}>
+                <span style={{
+                  padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold',
+                  backgroundColor: wait.status === 'accepted' ? '#d1e7dd' : '#fff3cd', 
+                  color: wait.status === 'accepted' ? '#0f5132' : '#856404'
+                }}>
+                  {wait.status === 'waiting' ? 'În așteptare' : wait.status === 'accepted' ? 'Asignat ✓' : wait.status}
+                </span>
+              </td>
+              
+              {/* Celula Acțiuni */}
+              <td style={{ padding: '12px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                <button 
+                  onClick={() => handleAssignWaitlist(wait.id, wait.campaign_id, wait.campaign_title)}
+                  disabled={wait.status === 'accepted'}
+                  style={{ 
+                    padding: '6px 12px', 
+                    backgroundColor: wait.status === 'accepted' ? '#ccc' : '#e63946', 
+                    color: 'white', 
+                    border: 'none', 
+                    borderRadius: '4px', 
+                    cursor: wait.status === 'accepted' ? 'not-allowed' : 'pointer', 
+                    fontSize: '11px', 
+                    fontWeight: 'bold' 
+                  }}
+                >
+                  Asignează
+                </button>
+              </td>
+
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+</section>
               </>
             )}
 
