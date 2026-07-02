@@ -68,10 +68,17 @@ class Appointment(Base):
     status = Column(Enum(AppointmentStatus, name="appointment_status_check"), nullable=False)
     created_at = Column(DateTime, server_default=text("GETDATE()"))
     
+    # --- CÂMPURI NOI PENTRU INVITAȚI ---
+    is_for_someone_else = Column(Boolean, nullable=False, default=False)
+    guest_name = Column(String(100), nullable=True)
+    guest_surname = Column(String(100), nullable=True)
+    guest_phone = Column(String(15), nullable=True)
+    guest_blood_group = Column(String(10), nullable=True, default="Nu știu")
+    appointment_date = Column(Date, nullable=True)
+    
     campaign = relationship("Campaign", back_populates="appointments")
     user = relationship("User", back_populates="appointments")
     eligibility_answers = relationship("EligibilityAnswer", back_populates="appointment", cascade="all, delete-orphan")
-
 
 class Waitlist(Base):
     __tablename__ = 'waitlist'

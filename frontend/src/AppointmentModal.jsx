@@ -1,13 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-// Adăugat prop-ul optional `isAssigningFromWaitlist` și `waitlistId`
 function AppointmentModal({ campaign, onClose, onRefresh, onOpenWaitlist, isAssigningFromWaitlist = false, waitlistId = null }) { 
   const [slots, setSlots] = useState([]);
   const [selectedSlot, setSelectedSlot] = useState({ date: '', time: '' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // --- State-uri noi pentru programarea altei persoane ---
+  const [isForSomeoneElse, setIsForSomeoneElse] = useState(false);
+  const [guestName, setGuestName] = useState('');
+  const [guestSurname, setGuestSurname] = useState('');
+  const [guestPhone, setGuestPhone] = useState('');
+  const [guestBloodGroup, setGuestBloodGroup] = useState('Nu știu');
 
   const fetchSlots = async () => {
     try {
@@ -59,13 +65,16 @@ function AppointmentModal({ campaign, onClose, onRefresh, onOpenWaitlist, isAssi
       return;
     }
 
+    if (isForSomeoneElse && (!guestName || !guestSurname || !guestPhone)) {
+      setError('Vă rugăm să completați toate datele persoanei pe care o programați.');
+      return;
+    }
+
     try {
       if (isAssigningFromWaitlist) {
-        // --- LOGICĂ ASIGNARE ADMIN DIN WAITLIST ---
         await axios.post(`http://127.0.0.1:8000/waitlist/${waitlistId}/assign?slot_time=${selectedSlot.time}`);
         setSuccess('Donatorul din lista de așteptare a fost asignat cu succes!');
       } else {
-        // --- LOGICĂ REZERVARE STANDARD DONATOR ---
         const savedUser = sessionStorage.getItem('user_session');
         const user = savedUser ? JSON.parse(savedUser) : null;
 
@@ -78,7 +87,13 @@ function AppointmentModal({ campaign, onClose, onRefresh, onOpenWaitlist, isAssi
           campaign_id: campaign.id,
           slot_time: selectedSlot.time,
           user_id: user.id,
-          appointment_date: selectedSlot.date
+          appointment_date: selectedSlot.date,
+          // Tritem noile proprietăți către API
+          is_for_someone_else: isForSomeoneElse,
+          guest_name: isForSomeoneElse ? guestName : null,
+          guest_surname: isForSomeoneElse ? guestSurname : null,
+          guest_phone: isForSomeoneElse ? guestPhone : null,
+          guest_blood_group: isForSomeoneElse ? guestBloodGroup : "Nu știu"
         });
         setSuccess('Programare realizată cu succes!');
       }
@@ -117,6 +132,52 @@ function AppointmentModal({ campaign, onClose, onRefresh, onOpenWaitlist, isAssi
               <p style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#555' }}>
                 Locație: <strong>{campaign.location_name}</strong> ({campaign.address})
               </p>
+
+              {/* OPTIUNEA NOUĂ: PROGRAMEAZĂ PE ALTCINEVA */}
+              {!isAssigningFromWaitlist && (
+                <div style={{ backgroundColor: '#fdf0f1', padding: '12px', borderRadius: '6px', marginBottom: '15px', border: '1px solid #f9dadc' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 'bold', color: '#e63946', fontSize: '14px' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={isForSomeoneElse} 
+                      onChange={(e) => setIsForSomeoneElse(e.target.checked)}
+                      style={{ transform: 'scale(1.2)', cursor: 'pointer' }}
+                    />
+                    Programez pentru altcineva (sot/sotie, prieten etc.)
+                  </label>
+
+                  {isForSomeoneElse && (
+                    <div style={{ marginTop: '12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', marginBottom: '3px', color: '#333' }}>Nume:</label>
+                        <input type="text" value={guestName} onChange={(e) => setGuestName(e.target.value)} required style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box', fontSize: '13px' }} />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', marginBottom: '3px', color: '#333' }}>Prenume:</label>
+                        <input type="text" value={guestSurname} onChange={(e) => setGuestSurname(e.target.value)} required style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box', fontSize: '13px' }} />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', marginBottom: '3px', color: '#333' }}>Telefon:</label>
+                        <input type="text" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} required style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box', fontSize: '13px' }} />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', marginBottom: '3px', color: '#333' }}>Grupa Sanguină:</label>
+                        <select value={guestBloodGroup} onChange={(e) => setGuestBloodGroup(e.target.value)} style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box', fontSize: '13px', backgroundColor: '#fff' }}>
+                          <option value="Nu știu">Nu știu</option>
+                          <option value="0I+">0I (+)</option>
+                          <option value="0I-">0I (-)</option>
+                          <option value="AII+">AII (+)</option>
+                          <option value="AII-">AII (-)</option>
+                          <option value="BIII+">BIII (+)</option>
+                          <option value="BIII-">BIII (-)</option>
+                          <option value="ABIV+">ABIV (+)</option>
+                          <option value="ABIV-">ABIV (-)</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
               
               {Object.keys(groupedSlots).map((dateKey, dayIndex) => (
                 <div key={dateKey} style={{ marginBottom: '20px', borderBottom: Object.keys(groupedSlots).length > 1 ? '1px dashed #eee' : 'none', paddingBottom: '10px' }}>
@@ -162,7 +223,6 @@ function AppointmentModal({ campaign, onClose, onRefresh, onOpenWaitlist, isAssi
             </div>
 
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', borderTop: '1px solid #eee', paddingTop: '15px' }}>
-              {/* Afișăm butonul de înscriere în waitlist doar dacă nu suntem deja în fluxul de asignare din waitlist */}
               {!isAssigningFromWaitlist && (
                 <button 
                   type="button"

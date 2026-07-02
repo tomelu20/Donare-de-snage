@@ -57,6 +57,14 @@ class AppointmentCreate(BaseModel):
     campaign_id: int
     slot_time: time
     user_id: int
+    appointment_date: datetime_date  # Adăugat pentru a prelua data din Frontend
+    
+    # --- Câmpuri noi pentru funcționalitatea extinsă ---
+    is_for_someone_else: bool = False
+    guest_name: Optional[str] = None
+    guest_surname: Optional[str] = None
+    guest_phone: Optional[str] = None
+    guest_blood_group: Optional[str] = "Nu știu"
 
 class AppointmentOut(BaseModel):
     id: int
