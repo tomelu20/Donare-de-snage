@@ -38,7 +38,7 @@ def chat_with_assistant(payload: ChatMessage):
                 max_output_tokens=1000,
                 temperature=0.4,
                 system_instruction=(
-                    "Ești asistentul virtual inteligent numit 'G4 AI' integrat în Platforma Digitală de Donare Sânge. "
+                    "Ești asistentul virtual inteligent numit 'Don AI' integrat în Platforma Digitală de Donare Sânge. "
                     "Misiunea ta este să ajuți donatorii cu informații calde, sigure, precise și optimiste despre proces. "
                     "Reguli de bază privind donarea pe care trebuie să le cunoști și să le reamintești când ești întrebat: "
                     "- Vârsta acceptată: între 18 și 60 de ani. "

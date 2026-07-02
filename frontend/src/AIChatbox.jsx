@@ -4,10 +4,15 @@ import axios from 'axios';
 function AIChatbox() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { sender: 'ai', text: 'Salut! Sunt asistentul tău inteligent G4 AI. Cu ce te pot ajuta astăzi în legătură cu donarea de sânge?' }
+    { sender: 'ai', text: 'Salut! Sunt asistentul tău inteligent Don AI. Cu ce te pot ajuta astăzi în legătură cu donarea de sânge?' }
   ]);
   const [inputValue, setInputValue] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  // State-uri pentru gestionarea limitării de mesaje (cooldown)
+  const [cooldownTime, setCooldownTime] = useState(0);
+  const [isCooldownActive, setIsCooldownActive] = useState(false);
+
   const messagesEndRef = useRef(null);
 
   // Auto-scroll la ultimul mesaj primit sau trimis
@@ -19,9 +24,27 @@ function AIChatbox() {
     if (isOpen) scrollToBottom();
   }, [messages, isOpen]);
 
+  // Logica pentru cronometrul descrescător (Cooldown)
+  useEffect(() => {
+    let timer;
+    if (isCooldownActive && cooldownTime > 0) {
+      timer = setInterval(() => {
+        setCooldownTime((prevTime) => {
+          if (prevTime <= 1) {
+            setIsCooldownActive(false);
+            clearInterval(timer);
+            return 0;
+          }
+          return prevTime - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [isCooldownActive, cooldownTime]);
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() || isCooldownActive) return;
 
     const userMessage = inputValue;
     // Adăugăm instant mesajul utilizatorului în listă
@@ -30,46 +53,61 @@ function AIChatbox() {
     setLoading(true);
 
     try {
-      // Apel către ruta LLM proaspăt creată din FastAPI
+      // Apel către ruta LLM din FastAPI
       const response = await axios.post('http://127.0.0.1:8000/ai/chat', { message: userMessage });
       setMessages((prev) => [...prev, { sender: 'ai', text: response.data.reply }]);
     } catch (error) {
-      setMessages((prev) => [...prev, { sender: 'ai', text: 'Momentan am întâmpinat o problemă de conexiune. Te rog să revii în câteva clipe.' }]);
+      // Verificăm dacă eroarea este de tip HTTP 429 (Too Many Requests / Rate Limit)
+      // Sau poți simula asta dacă backend-ul îți trimite o structură specifică
+      const secondsToWait = error.response?.data?.retry_after || 60; // înlocuiește cu proprietatea reală din backend sau lasă default 60
+
+      setCooldownTime(secondsToWait);
+      setIsCooldownActive(true);
+
+      setMessages((prev) => [
+        ...prev, 
+        { sender: 'ai', text: 'Ai atins limita de mesaje (tokeni) alocați pentru această sesiune.' }
+      ]);
     } finally {
       setLoading(false);
     }
   };
 
+  // Culori Tematice - Aliniate cu logo-ul din imaginea ta
+  const PRIMARY_RED = '#9b2226'; // Roșu închis pentru Header și Pastilă (Asortat cu logo-ul tău)
+  const USER_MSG_RED = '#d90429'; // Roșu aprins pentru bulele utilizatorului
+  const BG_LIGHT_CREAM = '#fdfaf9'; // Fundal chat extrem de fin, cu o tentă caldă
+
   return (
     <div style={{ position: 'fixed', bottom: '20px', right: '30px', zIndex: 3000, fontFamily: 'sans-serif' }}>
       
-      {/* 1. FEREASTRA PRINCIPALĂ DE CHAT (Se deschide deasupra pastilei) */}
+      {/* 1. FEREASTRA PRINCIPALĂ DE CHAT */}
       {isOpen && (
         <div style={{
           width: '360px', height: '450px', backgroundColor: 'white', borderRadius: '12px',
           boxShadow: '0 8px 30px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column',
-          marginBottom: '12px', border: '1px solid #e1e4e8', overflow: 'hidden'
+          marginBottom: '12px', border: '1px solid #f5e6e6', overflow: 'hidden'
         }}>
-          {/* Header Fereastră */}
-          <div style={{ backgroundColor: '#1d4ed8', color: 'white', padding: '15px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          {/* Header Fereastră - Acum Roșu Medical/Donare */}
+          <div style={{ backgroundColor: PRIMARY_RED, color: 'white', padding: '15px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '18px' }}>🤖</span> 
-              <span>Asistent Virtual G4 AI</span>
+              <span style={{ fontSize: '18px' }}>🩸</span> 
+              <span>Asistent Virtual Don AI</span>
             </div>
             <span style={{ fontSize: '12px', backgroundColor: '#198754', padding: '2px 6px', borderRadius: '4px' }}>Online</span>
           </div>
 
           {/* Zona de Mesaje */}
-          <div style={{ flex: 1, padding: '15px', overflowY: 'auto', backgroundColor: '#f8f9fa', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ flex: 1, padding: '15px', overflowY: 'auto', backgroundColor: BG_LIGHT_CREAM, display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {messages.map((msg, index) => (
               <div key={index} style={{
                 alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start',
-                backgroundColor: msg.sender === 'user' ? '#e63946' : '#ffffff',
+                backgroundColor: msg.sender === 'user' ? USER_MSG_RED : '#ffffff',
                 color: msg.sender === 'user' ? 'white' : '#333333',
                 padding: '10px 14px', borderRadius: '12px', maxWidth: '80%',
                 fontSize: '14px', boxShadow: msg.sender === 'ai' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
-                border: msg.sender === 'ai' ? '1px solid #e2e8f0' : 'none',
-                lineHeight: '1.45', whiteSpace: 'pre-line' // Păstrează așezarea în pagină trimisă de LLM
+                border: msg.sender === 'ai' ? '1px solid #f0e2e2' : 'none',
+                lineHeight: '1.45', whiteSpace: 'pre-line'
               }}>
                 {msg.text}
               </div>
@@ -77,27 +115,47 @@ function AIChatbox() {
             
             {/* Indicator de încărcare (Loading) */}
             {loading && (
-              <div style={{ alignSelf: 'flex-start', backgroundColor: '#ffffff', padding: '10px 14px', borderRadius: '12px', color: '#718096', fontSize: '13px', fontStyle: 'italic', border: '1px solid #e2e8f0' }}>
-                🧠 G4 AI gândește răspunsul...
+              <div style={{ alignSelf: 'flex-start', backgroundColor: '#ffffff', padding: '10px 14px', borderRadius: '12px', color: '#718096', fontSize: '13px', fontStyle: 'italic', border: '1px solid #f0e2e2' }}>
+                ❤️ Don AI gândește răspunsul...
               </div>
             )}
+
+            {/* Mesajul dinamic de Cooldown (Când se termină tokenii) */}
+            {isCooldownActive && (
+              <div style={{ 
+                alignSelf: 'center', 
+                backgroundColor: '#fff3cd', 
+                color: '#856404', 
+                padding: '10px 14px', 
+                borderRadius: '8px', 
+                fontSize: '13px', 
+                textAlign: 'center',
+                border: '1px solid #ffeeba',
+                width: '90%',
+                fontWeight: '500'
+              }}>
+                ⏳ Poți trimite următorul mesaj în <strong>{cooldownTime}</strong> secunde.
+              </div>
+            )}
+            
             <div ref={messagesEndRef} />
           </div>
         </div>
       )}
 
-      {/* 2. PASTILA FIXĂ DE CHAT (Bara orizontală din screenshot-ul tău) */}
+      {/* 2. PASTILA FIXĂ DE CHAT */}
       <div style={{
-        display: 'flex', alignItems: 'center', backgroundColor: '#1d4ed8', 
-        padding: '8px 14px', borderRadius: '25px', boxShadow: '0 4px 15px rgba(0,0,0,0.15)',
-        width: '320px', gap: '10px', border: '1px solid rgba(255,255,255,0.1)'
+        display: 'flex', alignItems: 'center', backgroundColor: PRIMARY_RED, 
+        padding: '8px 14px', borderRadius: '25px', boxShadow: '0 4px 15px rgba(155,34,38,0.25)',
+        width: '320px', gap: '10px', border: '1px solid rgba(255,255,255,0.1)',
+        opacity: isCooldownActive ? 0.8 : 1 // Schimbă opacitatea subtil când e blocat
       }}>
-        {/* Cercul G4 Avatar */}
+        {/* Cercul Don AI Avatar */}
         <div style={{
           backgroundColor: 'white', width: '32px', height: '32px', borderRadius: '50%',
-          display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '13px', color: '#1d4ed8'
+          display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '11px', color: PRIMARY_RED
         }}>
-          G4
+          DonAI
         </div>
 
         {/* Input Text încorporat direct în bară */}
@@ -106,11 +164,13 @@ function AIChatbox() {
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            onClick={() => setIsOpen(true)} // Deschide automat fereastra la click pe input
-            placeholder="Chat cu G4 AI"
+            onClick={() => setIsOpen(true)}
+            disabled={isCooldownActive} // Dezactivează inputul fizic în timpul cooldown-ului
+            placeholder={isCooldownActive ? `Așteaptă ${cooldownTime}s...` : "Chat cu Don AI"}
             style={{
               width: '100%', background: 'none', border: 'none', color: 'white',
-              outline: 'none', fontSize: '14px', padding: '2px 0'
+              outline: 'none', fontSize: '14px', padding: '2px 0',
+              cursor: isCooldownActive ? 'not-allowed' : 'text'
             }}
           />
           <button type="submit" style={{ display: 'none' }}>Trimite</button>
