@@ -466,29 +466,61 @@ function Dashboard({ onLogout }) {
               </main>
 
               {/* LISTARE PROGRAMĂRI INDIVIDUALE (DOAR DONATORI) */}
-              {user?.role !== 'admin' && user?.role !== 'ADMIN' && (
-                <aside style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid #e1e4e8' }}>
-                  <h3 style={{ margin: '0 0 20px 0', color: '#2b2d42', borderBottom: '2px solid #f1f3f5', paddingBottom: '10px' }}>🩸 Programările Mele</h3>
-                  {myAppointments.length === 0 ? (
-                    <p style={{ color: '#666', fontStyle: 'italic', fontSize: '14px' }}>Nu aveți nicio programare activă rezervată.</p>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                      {myAppointments.map((app) => (
-                        <div key={app.id} style={{ border: '1px solid #e1e4e8', borderRadius: '6px', padding: '15px', backgroundColor: '#fafafa' }}>
-                          <h4 style={{ margin: '0 0 5px 0', color: '#333', fontSize: '15px' }}>{app.campaign_title || 'Campanie'}</h4>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', marginTop: '10px' }}>
-                            <div>
-                              <span>📅 {formatDateRo(app.appointment_date || app.campaign_date)}</span>
-                              <span style={{ display: 'block', fontWeight: 'bold', color: '#e63946', marginTop: '2px' }}>🕒 Ora: {formatTimeShort(app.slot_time)}</span>
-                            </div>
-                            <button onClick={() => handleCancelClick(app.id)} style={{ padding: '5px 10px', backgroundColor: '#fff', border: '1px solid #dc3545', color: '#dc3545', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>Anulează</button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </aside>
-              )}
+{user?.role !== 'admin' && user?.role !== 'ADMIN' && (
+  <aside style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid #e1e4e8' }}>
+    <h3 style={{ margin: '0 0 20px 0', color: '#2b2d42', borderBottom: '2px solid #f1f3f5', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+      🩸 Programările Mele
+    </h3>
+    
+    {myAppointments.length === 0 ? (
+      <p style={{ color: '#666', fontStyle: 'italic', fontSize: '14px' }}>Nu aveți nicio programare activă rezervată.</p>
+    ) : (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+        {/* Înlocuiește randarea din interiorul myAppointments.map în Dashboard.jsx cu aceasta: */}
+{myAppointments.map((app) => (
+  <div key={app.id} style={{ border: '1px solid #f1f3f5', borderRadius: '8px', padding: '16px', backgroundColor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', borderLeft: '4px solid #e63946' }}>
+    
+    {/* Titlul Campaniei cu fallback */}
+    <h4 style={{ margin: '0 0 10px 0', color: '#2b2d42', fontSize: '16px', fontWeight: 'bold', lineHeight: '1.4' }}>
+      {app.campaign_title || 'Campanie de Donare'}
+    </h4>
+    
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#555', marginBottom: '12px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <span>📅</span> 
+        {/* Folosește appointment_date sau proprietatea alternativă în funcție de ce vine din obiect */}
+        <span>Data: <strong>{formatDateRo(app.appointment_date || app.campaign_date || '')}</strong></span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <span>🕒</span> 
+        <span>Ora: <strong style={{ color: '#e63946' }}>{formatTimeShort(app.slot_time)}</strong></span>
+      </div>
+    </div>
+
+    <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #f8f9fa', paddingTop: '10px' }}>
+      <button 
+        onClick={() => handleCancelClick(app.id)} 
+        style={{ 
+          padding: '6px 12px', 
+          backgroundColor: '#fff', 
+          border: '1px solid #dc3545', 
+          color: '#dc3545', 
+          borderRadius: '4px', 
+          cursor: 'pointer', 
+          fontSize: '12px',
+          fontWeight: 'bold'
+        }}
+      >
+        Anulează Rezervarea
+      </button>
+    </div>
+
+  </div>
+))}
+      </div>
+    )}
+  </aside>
+)}
 
             </div>
           </>

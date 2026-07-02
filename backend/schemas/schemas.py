@@ -66,6 +66,7 @@ class AppointmentCreate(BaseModel):
     guest_phone: Optional[str] = None
     guest_blood_group: Optional[str] = "Nu știu"
 
+# Caută clasa AppointmentOut în schemas.py și actualizeaz-o așa:
 class AppointmentOut(BaseModel):
     id: int
     campaign_id: int
@@ -73,6 +74,9 @@ class AppointmentOut(BaseModel):
     slot_time: time
     status: str
     created_at: datetime
+    # Adăugăm noile câmpuri pentru a nu fi blocate de validarea Pydantic:
+    appointment_date: Optional[datetime_date] = None
+    campaign_title: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

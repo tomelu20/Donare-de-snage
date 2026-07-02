@@ -191,12 +191,21 @@ def cancel_appointment(id: int, db: Session = Depends(get_db)):
 
 @router.get("/me", response_model=List[AppointmentOut])
 def get_my_appointments(user_id: int, db: Session = Depends(get_db)):
-    # Filtrează programările specifice doar utilizatorului dat ca parametru URL
+    # Adăugăm JOIN pentru a prelua titlul campaniei și data corectă
     query = text("""
-        SELECT id, campaign_id, user_id, slot_time, status, created_at 
-        FROM appointments 
-        WHERE user_id = :user_id AND status != 'cancelled'
-        ORDER BY created_at DESC
+        SELECT 
+            a.id, 
+            a.campaign_id, 
+            a.user_id, 
+            a.slot_time, 
+            a.status, 
+            a.created_at,
+            a.appointment_date, -- Data exactă a programării din tabelul appointments
+            c.title AS campaign_title
+        FROM appointments a
+        JOIN campaigns c ON a.campaign_id = c.id
+        WHERE a.user_id = :user_id AND a.status != 'cancelled'
+        ORDER BY a.appointment_date DESC, a.slot_time DESC
     """)
     result = db.execute(query, {"user_id": user_id}).mappings().all()
     return result
