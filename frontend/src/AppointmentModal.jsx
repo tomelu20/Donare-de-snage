@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-function AppointmentModal({ campaign, onClose, onRefresh, onOpenWaitlist, isAssigningFromWaitlist = false, waitlistId = null }) { 
+function AppointmentModal({ campaign, eligibilityQuestions = [], onClose, onRefresh, onOpenWaitlist, isAssigningFromWaitlist = false, waitlistId = null }) { 
   const [slots, setSlots] = useState([]);
   const [selectedSlot, setSelectedSlot] = useState({ date: '', time: '' });
   const [loading, setLoading] = useState(true);
@@ -15,20 +15,27 @@ function AppointmentModal({ campaign, onClose, onRefresh, onOpenWaitlist, isAssi
   const [guestPhone, setGuestPhone] = useState('');
   const [guestBloodGroup, setGuestBloodGroup] = useState('Nu știu');
 
-  // --- State-uri pentru Formularul de Eligibilitate ---
+  // --- State-uri pentru Formularul de Eligibilitate Dinamic ---
   const [showEligibilityModal, setShowEligibilityModal] = useState(false);
   const [isEligible, setIsEligible] = useState(false);
-  const [checklist, setChecklist] = useState({
-    weight: false,
-    age: false,
-    surgery: false,
-    anesthesia: false,
-    procedures: false,
-    antiinflammatory: false,
-    paracetamol: false,
-    vaccine: false,
-    previousDonation: false
-  });
+  const [checklist, setChecklist] = useState({});
+
+  // Inițializează checklist-ul în funcție de tipul întrebării
+  useEffect(() => {
+    if (eligibilityQuestions && eligibilityQuestions.length > 0) {
+      const initialMap = {};
+      eligibilityQuestions.forEach(q => {
+        if (q.type === 'numeric') {
+          initialMap[q.id] = ''; 
+        } else if (q.type === 'radio') {
+          initialMap[q.id] = null; 
+        } else {
+          initialMap[q.id] = false; 
+        }
+      });
+      setChecklist(initialMap);
+    }
+  }, [eligibilityQuestions]);
 
   const fetchSlots = async () => {
     try {
@@ -56,10 +63,26 @@ function AppointmentModal({ campaign, onClose, onRefresh, onOpenWaitlist, isAssi
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
+  // Validare dinamică în funcție de tipul fiecărei întrebări active
   useEffect(() => {
-    const allChecked = Object.values(checklist).every(value => value === true);
-    setIsEligible(allChecked);
-  }, [checklist]);
+    if (!eligibilityQuestions || eligibilityQuestions.length === 0) {
+      setIsEligible(true);
+      return;
+    }
+    
+    const allValid = eligibilityQuestions.every(q => {
+      if (q.type === 'numeric') {
+        const val = parseInt(checklist[q.id], 10);
+        return !isNaN(val) && val > 0;
+      }
+      if (q.type === 'radio') {
+        return checklist[q.id] !== null && checklist[q.id] !== undefined;
+      }
+      return checklist[q.id] === true;
+    });
+
+    setIsEligible(allValid);
+  }, [checklist, eligibilityQuestions]);
 
   const groupedSlots = slots.reduce((acc, slot) => {
     if (!acc[slot.date]) {
@@ -75,10 +98,17 @@ function AppointmentModal({ campaign, onClose, onRefresh, onOpenWaitlist, isAssi
     return `Ziua ${index + 1} (${dateObj.toLocaleDateString('ro-RO', options)})`;
   };
 
-  const handleCheckboxChange = (key) => {
+  const handleCheckboxChange = (id) => {
     setChecklist(prev => ({
       ...prev,
-      [key]: !prev[key]
+      [id]: !prev[id]
+    }));
+  };
+
+  const handleInputChange = (id, value) => {
+    setChecklist(prev => ({
+      ...prev,
+      [id]: value
     }));
   };
 
@@ -127,14 +157,13 @@ function AppointmentModal({ campaign, onClose, onRefresh, onOpenWaitlist, isAssi
           guest_blood_group: isForSomeoneElse ? guestBloodGroup : "Nu știu"
         });
         
-        // MESAJ DE SUCCES PERSONALIZAT CONFORM CERINȚEI
         setSuccess('Felicitări! Te-ai programat cu succes, poți să-ți vezi programarea în secțiunea Programările Mele.');
       }
 
       if (onRefresh) onRefresh();
       setTimeout(() => {
         onClose();
-      }, 4000); // 4 secunde timp de citire înainte de închidere automată
+      }, 4000);
     } catch (err) {
       setError(err.response?.data?.detail || 'A apărut o eroare la salvarea programării.');
     }
@@ -167,7 +196,6 @@ function AppointmentModal({ campaign, onClose, onRefresh, onOpenWaitlist, isAssi
                 Locație: <strong>{campaign.location_name}</strong> ({campaign.address})
               </p>
 
-              {/* INDICAȚIE TEXT / ALERTĂ PENTRU UTILIZATOR CONFORM CERINȚEI */}
               {!isAssigningFromWaitlist && (
                 <div style={{ 
                   backgroundColor: isEligible ? '#e2f0d9' : '#fff3cd', 
@@ -352,100 +380,105 @@ function AppointmentModal({ campaign, onClose, onRefresh, onOpenWaitlist, isAssi
         )}
       </div>
 
-      {/* MODAL INTERN PENTRU CHECKLIST FORMULAR ELIGIBILITATE */}
+      {/* MODAL INTERN MODIFICAT: STRUCTURĂ FLEX CU SCROLL INDEPENDENT DOAR PE CONȚINUT */}
       {showEligibilityModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 3000 }}>
-          <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', maxWidth: '500px', width: '90%', maxHeight: '80vh', overflowY: 'auto', fontFamily: 'sans-serif', boxShadow: '0 5px 25px rgba(0,0,0,0.3)' }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '8px', maxWidth: '500px', width: '90%', maxHeight: '80vh', display: 'flex', flexDirection: 'column', fontFamily: 'sans-serif', boxShadow: '0 5px 25px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
             
-            <h3 style={{ margin: '0 0 15px 0', color: '#2b2d42', borderBottom: '2px solid #e63946', paddingBottom: '8px' }}>
-              📋 Formular Chestionar Eligibilitate
-            </h3>
-            <p style={{ fontSize: '13px', color: '#666', marginBottom: '20px' }}>
-              Pentru a finaliza programarea, trebuie să confirmați prin bifare că îndepliniți toate condițiile medicale obligatorii de mai jos:
-            </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              
-              {/* Condiții generale */}
-              <div>
-                <h5 style={{ margin: '0 0 8px 0', color: '#e63946', fontSize: '14px' }}>Condiții generale</h5>
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '13px', cursor: 'pointer', marginBottom: '6px' }}>
-                  <input type="checkbox" checked={checklist.weight} onChange={() => handleCheckboxChange('weight')} style={{ marginTop: '2px' }} />
-                  am peste 50 kg
-                </label>
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '13px', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={checklist.age} onChange={() => handleCheckboxChange('age')} style={{ marginTop: '2px' }} />
-                  am între 18 și 65 ani
-                </label>
-              </div>
-
-              {/* Intervenții medicale */}
-              <div>
-                <h5 style={{ margin: '0 0 8px 0', color: '#e63946', fontSize: '14px' }}>Intervenții medicale</h5>
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '13px', cursor: 'pointer', marginBottom: '6px' }}>
-                  <input type="checkbox" checked={checklist.surgery} onChange={() => handleCheckboxChange('surgery')} style={{ marginTop: '2px' }} />
-                  nu am avut intervenții chirurgicale recente
-                </label>
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '13px', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={checklist.anesthesia} onChange={() => handleCheckboxChange('anesthesia')} style={{ marginTop: '2px' }} />
-                  nu am avut anestezie recent
-                </label>
-              </div>
-
-              {/* Proceduri estetice */}
-              <div>
-                <h5 style={{ margin: '0 0 8px 0', color: '#e63946', fontSize: '14px' }}>Proceduri estetice</h5>
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '13px', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={checklist.procedures} onChange={() => handleCheckboxChange('procedures')} style={{ marginTop: '2px' }} />
-                  nu am avut tatuaj/piercing/acupunctură/micro-pigmentare în ultimele 6 luni
-                </label>
-              </div>
-
-              {/* Medicamente */}
-              <div>
-                <h5 style={{ margin: '0 0 8px 0', color: '#e63946', fontSize: '14px' }}>Medicamente</h5>
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '13px', cursor: 'pointer', marginBottom: '6px' }}>
-                  <input type="checkbox" checked={checklist.antiinflammatory} onChange={() => handleCheckboxChange('antiinflammatory')} style={{ marginTop: '2px' }} />
-                  nu am luat antiinflamatoare (ex: Nurofen) în ultima săptămână
-                </label>
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '13px', cursor: 'pointer', marginBottom: '6px' }}>
-                  <input type="checkbox" checked={checklist.paracetamol} onChange={() => handleCheckboxChange('paracetamol')} style={{ marginTop: '2px' }} />
-                  nu am luat paracetamol în ultima săptămână
-                </label>
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '13px', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={checklist.vaccine} onChange={() => handleCheckboxChange('vaccine')} style={{ marginTop: '2px' }} />
-                  nu am făcut vaccin (COVID / gripal / HPV) în ultima lună
-                </label>
-              </div>
-
-              {/* Donări anterioare */}
-              <div>
-                <h5 style={{ margin: '0 0 8px 0', color: '#e63946', fontSize: '14px' }}>Donări anterioare</h5>
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '13px', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={checklist.previousDonation} onChange={() => handleCheckboxChange('previousDonation')} style={{ marginTop: '2px' }} />
-                  au trecut 8 săptămâni (femei) / 12 săptămâni (bărbați) de la ultima donare
-                </label>
-              </div>
-
+            {/* HEADER FIX CHESTIONAR */}
+            <div style={{ padding: '25px 25px 15px 25px', borderBottom: '1px solid #eee' }}>
+              <h3 style={{ margin: '0 0 5px 0', color: '#2b2d42', borderBottom: '2px solid #e63946', paddingBottom: '8px' }}>
+                📋 Formular Chestionar Eligibilitate
+              </h3>
+              <p style={{ fontSize: '13px', color: '#666', margin: '10px 0 0 0' }}>
+                Pentru a finaliza programarea, trebuie să răspundeți corect sau să bifați condițiile obligatorii de mai jos:
+              </p>
             </div>
 
-            <div style={{ marginTop: '25px', paddingTop: '10px', borderTop: '1px solid #eee', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button
-                type="button"
-                onClick={() => setShowEligibilityModal(false)}
-                style={{ 
-                  padding: '8px 20px', 
-                  backgroundColor: isEligible ? '#198754' : '#e63946', 
-                  color: 'white', 
-                  border: 'none', 
-                  borderRadius: '4px', 
-                  cursor: 'pointer', 
-                  fontWeight: 'bold' 
-                }}
-              >
-                {isEligible ? 'Salvează & Continuă' : 'Închide (Neelegibil)'}
-              </button>
+            {/* ZONA DE CONȚINUT CU SCROLL EXCLUSIV */}
+            <div style={{ padding: '20px 25px', overflowY: 'auto', flex: 1, backgroundColor: '#fff' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                {eligibilityQuestions.length === 0 ? (
+                  <p style={{ fontSize: '13px', color: '#666', fontStyle: 'italic' }}>Nu există întrebări de eligibilitate active setate în baza de date.</p>
+                ) : (
+                  eligibilityQuestions.map((q) => (
+                    <div key={q.id} style={{ borderBottom: '1px solid #f1f3f5', paddingBottom: '12px' }}>
+                      <span style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#333', marginBottom: '8px' }}>
+                        {q.question_text}
+                      </span>
+                      
+                      {/* 1. Tip Răspuns: NUMERIC */}
+                      {q.type === 'numeric' && (
+                        <input 
+                          type="number" 
+                          value={checklist[q.id] || ''} 
+                          onChange={(e) => handleInputChange(q.id, e.target.value)}
+                          placeholder="Introduceți valoarea..."
+                          style={{ width: '100%', padding: '6px 10px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '13px', boxSizing: 'border-box' }}
+                        />
+                      )}
+
+                      {/* 2. Tip Răspuns: RADIO (DA / NU) */}
+                      {q.type === 'radio' && (
+                        <div style={{ display: 'flex', gap: '20px', marginTop: '4px' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer' }}>
+                            <input 
+                              type="radio" 
+                              name={`radio-${q.id}`} 
+                              checked={checklist[q.id] === 'da'} 
+                              onChange={() => handleInputChange(q.id, 'da')} 
+                            />
+                            Da
+                          </label>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer' }}>
+                            <input 
+                              type="radio" 
+                              name={`radio-${q.id}`} 
+                              checked={checklist[q.id] === 'nu'} 
+                              onChange={() => handleInputChange(q.id, 'nu')} 
+                            />
+                            Nu
+                          </label>
+                        </div>
+                      )}
+
+                      {/* 3. Tip Răspuns: CHECKBOX */}
+                      {(q.type === 'checkbox' || !q.type) && (
+                        <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '13px', cursor: 'pointer' }}>
+                          <input 
+                            type="checkbox" 
+                            checked={!!checklist[q.id]} 
+                            onChange={() => handleCheckboxChange(q.id)} 
+                            style={{ marginTop: '2px' }} 
+                        />
+                        Confirm starea indicată mai sus
+                      </label>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
+          </div>
+
+          {/* FOOTER FIX JOS - BUTONUL ESTE ACUM COCOȚAT PE ECRAN ȘI NU SE MAI ASCUNDE SUB SCROLL */}
+          <div style={{ marginTop: 'auto', padding: '15px 25px 20px 25px', borderTop: '1px solid #eee', display: 'flex', justifyContent: 'flex-end', backgroundColor: '#fdfdfd' }}>
+            <button
+              type="button"
+              onClick={() => setShowEligibilityModal(false)}
+              style={{ 
+                padding: '10px 24px', 
+                backgroundColor: isEligible ? '#198754' : '#e63946', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '4px', 
+                cursor: 'pointer', 
+                fontWeight: 'bold',
+                fontSize: '13px'
+              }}
+            >
+              {isEligible ? 'Salvează & Continuă' : 'Închide (Neelegibil)'}
+            </button>
+          </div>
 
           </div>
         </div>

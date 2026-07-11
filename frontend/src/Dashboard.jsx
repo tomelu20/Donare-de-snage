@@ -11,8 +11,13 @@ function Dashboard({ onLogout }) {
   const [campaigns, setCampaigns] = useState([]); 
   const [myAppointments, setMyAppointments] = useState([]); 
   const [adminAppointments, setAdminAppointments] = useState([]); 
-  const [adminWaitlist, setAdminWaitlist] = useState([]); // <-- State nou pentru waitlist admin[cite: 1]
+  const [adminWaitlist, setAdminWaitlist] = useState([]); // <-- State nou pentru waitlist admin
   
+  // --- State-uri noi adăugate exclusiv pentru managementul chestionarului ---
+  const [eligibilityQuestions, setEligibilityQuestions] = useState([]);
+  const [newQuestionText, setNewQuestionText] = useState('');
+  const [newQuestionType, setNewQuestionType] = useState('checkbox');
+
   const [loading, setLoading] = useState(true); 
   const [apiError, setApiError] = useState(''); 
   const [selectedCampaign, setSelectedCampaign] = useState(null); 
@@ -22,7 +27,7 @@ function Dashboard({ onLogout }) {
   const [appointmentToCancel, setAppointmentToCancel] = useState(null); 
   const [successNotification, setSuccessNotification] = useState(''); 
 
-  // State-uri pentru Formularul de Campanie Nouă (Admin)[cite: 1]
+  // State-uri pentru Formularul de Campanie Nouă (Admin)
   const [newCampTitle, setNewCampTitle] = useState('');
   const [newCampLocation, setNewCampLocation] = useState('');
   const [newCampAddress, setNewCampAddress] = useState('');
@@ -39,16 +44,20 @@ function Dashboard({ onLogout }) {
       setLoading(true);
       setApiError('');
 
-      // 1. Preluăm toate campaniile active[cite: 1]
+      // 1. Preluăm toate campaniile active
       const campaignsRes = await axios.get('http://127.0.0.1:8000/campaigns/');
       setCampaigns(campaignsRes.data);
 
-      // 2. În funcție de rol, apelăm rutele specifice din backend[cite: 1]
+      // Preluăm dinamic întrebările curente de eligibilitate din backend (Mutat aici pentru a fi accesibil tuturor rolurilor)
+      const questionsRes = await axios.get('http://127.0.0.1:8000/eligibility/questions');
+      setEligibilityQuestions(questionsRes.data);
+
+      // 2. În funcție de rol, apelăm rutele specifice din backend
       if (user.role === 'admin' || user.role === 'ADMIN' ? true : false) {
         const adminAppsRes = await axios.get('http://127.0.0.1:8000/appointments/all');
         setAdminAppointments(adminAppsRes.data);
 
-        // Preluăm înscrierile din waitlist pentru admin[cite: 1]
+        // Preluăm înscrierile din waitlist pentru admin
         const adminWaitlistRes = await axios.get('http://127.0.0.1:8000/waitlist/all');
         setAdminWaitlist(adminWaitlistRes.data);
       } else {
@@ -65,6 +74,40 @@ function Dashboard({ onLogout }) {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // --- Funcții noi adăugate exclusiv pentru managementul întrebărilor ---
+  const handleAddQuestion = async (e) => {
+    e.preventDefault();
+    if (!newQuestionText.trim()) return;
+    try {
+      await axios.post('http://127.0.0.1:8000/eligibility/questions', {
+        question_text: newQuestionText,
+        type: newQuestionType
+      });
+      setSuccessNotification('Întrebarea a fost adăugată cu succes!');
+      setNewQuestionText('');
+      
+      const questionsRes = await axios.get('http://127.0.0.1:8000/eligibility/questions');
+      setEligibilityQuestions(questionsRes.data);
+      setTimeout(() => setSuccessNotification(''), 3000);
+    } catch (err) {
+      setApiError('Eroare la adăugarea întrebării.');
+    }
+  };
+
+  const handleDeleteQuestion = async (questionId) => {
+    if (!window.confirm('Sigur doriți să ștergeți această întrebare?')) return;
+    try {
+      await axios.delete(`http://127.0.0.1:8000/eligibility/questions/${questionId}`);
+      setSuccessNotification('Întrebarea a fost ștearsă cu succes!');
+      
+      const questionsRes = await axios.get('http://127.0.0.1:8000/eligibility/questions');
+      setEligibilityQuestions(questionsRes.data);
+      setTimeout(() => setSuccessNotification(''), 3000);
+    } catch (err) {
+      setApiError('Eroare la ștergerea întrebării.');
+    }
+  };
 
   const handleCreateCampaign = async (e) => {
     e.preventDefault();
@@ -163,7 +206,6 @@ function Dashboard({ onLogout }) {
     }
   };
 
-  // Desfășoară logica de deschidere a tabelului orar pentru asignare directă
   const handleAssignWaitlist = (waitId, campaignId, campaignTitle) => {
     setAssignModalData({
       campaign: { id: campaignId, title: campaignTitle },
@@ -239,31 +281,21 @@ function Dashboard({ onLogout }) {
                             <th style={{ padding: '12px', textAlign: 'center' }}>Acțiuni Modificare Status</th>
                           </tr>
                         </thead>
-                        {/* Înlocuiește corpul tabelului din Dashboard.jsx cu această structură optimizată */}
                         <tbody>
                           {adminAppointments.map((app) => (
                             <tr key={app.appointment_id || app.id} style={{ borderBottom: '1px solid #eceeef' }}>
-      
-                              {/* Celula Donator - adăugat whiteSpace: 'nowrap' */}
                               <td style={{ padding: '12px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
                                 {app.donor_name} {app.donor_surname}
                               </td>
-      
-                              {/* Celula Telefon - adăugat whiteSpace: 'nowrap' */}
                               <td style={{ padding: '12px', whiteSpace: 'nowrap' }}>
                                 {app.donor_phone}
                               </td>
-      
-                              {/* Celula Campanie - adăugat whiteSpace: 'nowrap' */}
                               <td style={{ padding: '12px', fontWeight: '500', whiteSpace: 'nowrap' }}>
                                 {app.campaign_title}
                               </td>
-      
-                              {/* Celula Dată & Oră - adăugat whiteSpace: 'nowrap' */}
                               <td style={{ padding: '12px', whiteSpace: 'nowrap' }}>
                                 {formatDateRo(app.campaign_date)} | <strong style={{ color: '#e63946' }}>{formatTimeShort(app.slot_time)}</strong>
                               </td>
-      
                               <td style={{ padding: '12px' }}>
                                 <span style={{
                                   padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold',
@@ -273,13 +305,11 @@ function Dashboard({ onLogout }) {
                                   {app.status === 'confirmed' ? 'Confirmată' : app.status === 'attended' ? 'Prezent ✓' : 'Absent ✗'}
                                 </span>
                               </td>
-      
                               <td style={{ padding: '12px', display: 'flex', gap: '8px', justifyContent: 'center' }}>
                                 <button onClick={() => handleMarkAttendance(app.appointment_id || app.id)} disabled={app.status === 'attended'} style={{ padding: '6px 10px', backgroundColor: app.status === 'attended' ? '#ccc' : '#198754', color: 'white', border: 'none', borderRadius: '4px', cursor: app.status === 'attended' ? 'not-allowed' : 'pointer', fontSize: '11px', fontWeight: 'bold' }}>Prezent</button>
                                 <button onClick={() => handleMarkNoShow(app.appointment_id || app.id)} disabled={app.status === 'no_show'} style={{ padding: '6px 10px', backgroundColor: app.status === 'no_show' ? '#ccc' : '#ffc107', color: '#333', border: 'none', borderRadius: '4px', cursor: app.status === 'no_show' ? 'not-allowed' : 'pointer', fontSize: '11px', fontWeight: 'bold' }}>Absent</button>
                                 <button onClick={() => handleCancelClick(app.appointment_id || app.id)} style={{ padding: '6px 10px', backgroundColor: '#fff', border: '1px solid #dc3545', color: '#dc3545', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}>Anulează</button>
                               </td>
-      
                             </tr>
                           ))}
                         </tbody>
@@ -289,93 +319,140 @@ function Dashboard({ onLogout }) {
                 </section>
 
                 {/* CENTRALIZATOR WAITLIST (DOAR ADMIN) */}
-<section style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: '40px', border: '1px solid #e1e4e8' }}>
-  <h3 style={{ margin: '0 0 20px 0', color: '#2b2d42', borderBottom: '2px solid #f1f3f5', paddingBottom: '10px' }}>
-    📝 Centralizator Listă de Așteptare (Waitlist Inteligent)
-  </h3>
-  {adminWaitlist.length === 0 ? (
-    <p style={{ color: '#666', fontStyle: 'italic' }}>Nu există nicio persoană înscrisă în lista de așteptare.</p>
-  ) : (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-        <thead>
-          <tr style={{ backgroundColor: '#f8f9fa', borderBottom: '2px solid #dee2e6' }}>
-            <th style={{ padding: '12px', whiteSpace: 'nowrap' }}>Donator</th>
-            <th style={{ padding: '12px', whiteSpace: 'nowrap' }}>Telefon</th> {/* Modificat din Telefon / Email */}
-            <th style={{ padding: '12px', whiteSpace: 'nowrap' }}>Campanie Alocată</th>
-            <th style={{ padding: '12px', whiteSpace: 'nowrap' }}>Interval Preferat</th>
-            <th style={{ padding: '12px', whiteSpace: 'nowrap' }}>Timp Deplasare</th>
-            <th style={{ padding: '12px', whiteSpace: 'nowrap' }}>Status</th>
-            <th style={{ padding: '12px', textAlign: 'center', whiteSpace: 'nowrap' }}>Acțiuni</th>
-          </tr>
-        </thead>
-        <tbody>
-          {adminWaitlist.map((wait) => (
-            <tr key={wait.id} style={{ borderBottom: '1px solid #eceeef' }}>
-              
-              {/* Celula Donator */}
-              <td style={{ padding: '12px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
-                {wait.name} {wait.surname}
-              </td>
-              
-              {/* Celula Telefon (Afișează doar telefonul acum, pe un singur rând) */}
-              <td style={{ padding: '12px', fontSize: '14px', whiteSpace: 'nowrap' }}>
-                📞 {wait.phone}
-              </td>
-              
-              {/* Celula Campanie */}
-              <td style={{ padding: '12px', fontWeight: '500', whiteSpace: 'nowrap' }}>
-                {wait.campaign_title}
-              </td>
-              
-              {/* Celula Interval Preferat */}
-              <td style={{ padding: '12px', fontWeight: 'bold', color: '#e63946', whiteSpace: 'nowrap' }}>
-                {wait.preferred_time_range}
-              </td>
-              
-              {/* Celula Timp Deplasare */}
-              <td style={{ padding: '12px', whiteSpace: 'nowrap' }}>
-                ⏱️ {wait.travel_time_minutes} min
-              </td>
-              
-              {/* Celula Status */}
-              <td style={{ padding: '12px', whiteSpace: 'nowrap' }}>
-                <span style={{
-                  padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold',
-                  backgroundColor: wait.status === 'accepted' ? '#d1e7dd' : '#fff3cd', 
-                  color: wait.status === 'accepted' ? '#0f5132' : '#856404'
-                }}>
-                  {wait.status === 'waiting' ? 'În așteptare' : wait.status === 'accepted' ? 'Asignat ✓' : wait.status}
-                </span>
-              </td>
-              
-              {/* Celula Acțiuni */}
-              <td style={{ padding: '12px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                <button 
-                  onClick={() => handleAssignWaitlist(wait.id, wait.campaign_id, wait.campaign_title)}
-                  disabled={wait.status === 'accepted'}
-                  style={{ 
-                    padding: '6px 12px', 
-                    backgroundColor: wait.status === 'accepted' ? '#ccc' : '#e63946', 
-                    color: 'white', 
-                    border: 'none', 
-                    borderRadius: '4px', 
-                    cursor: wait.status === 'accepted' ? 'not-allowed' : 'pointer', 
-                    fontSize: '11px', 
-                    fontWeight: 'bold' 
-                  }}
-                >
-                  Asignează
-                </button>
-              </td>
+                <section style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: '40px', border: '1px solid #e1e4e8' }}>
+                  <h3 style={{ margin: '0 0 20px 0', color: '#2b2d42', borderBottom: '2px solid #f1f3f5', paddingBottom: '10px' }}>
+                    📝 Centralizator Listă de Așteptare (Waitlist Inteligent)
+                  </h3>
+                  {adminWaitlist.length === 0 ? (
+                    <p style={{ color: '#666', fontStyle: 'italic' }}>Nu există nicio persoană înscrisă în lista de așteptare.</p>
+                  ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                        <thead>
+                          <tr style={{ backgroundColor: '#f8f9fa', borderBottom: '2px solid #dee2e6' }}>
+                            <th style={{ padding: '12px', whiteSpace: 'nowrap' }}>Donator</th>
+                            <th style={{ padding: '12px', whiteSpace: 'nowrap' }}>Telefon</th>
+                            <th style={{ padding: '12px', whiteSpace: 'nowrap' }}>Campanie Alocată</th>
+                            <th style={{ padding: '12px', whiteSpace: 'nowrap' }}>Interval Preferat</th>
+                            <th style={{ padding: '12px', whiteSpace: 'nowrap' }}>Timp Deplasare</th>
+                            <th style={{ padding: '12px', whiteSpace: 'nowrap' }}>Status</th>
+                            <th style={{ padding: '12px', textAlign: 'center', whiteSpace: 'nowrap' }}>Acțiuni</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {adminWaitlist.map((wait) => (
+                            <tr key={wait.id} style={{ borderBottom: '1px solid #eceeef' }}>
+                              <td style={{ padding: '12px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                                {wait.name} {wait.surname}
+                              </td>
+                              <td style={{ padding: '12px', fontSize: '14px', whiteSpace: 'nowrap' }}>
+                                📞 {wait.phone}
+                              </td>
+                              <td style={{ padding: '12px', fontWeight: '500', whiteSpace: 'nowrap' }}>
+                                {wait.campaign_title}
+                              </td>
+                              <td style={{ padding: '12px', fontWeight: 'bold', color: '#e63946', whiteSpace: 'nowrap' }}>
+                                {wait.preferred_time_range}
+                              </td>
+                              <td style={{ padding: '12px', whiteSpace: 'nowrap' }}>
+                                ⏱️ {wait.travel_time_minutes} min
+                              </td>
+                              <td style={{ padding: '12px', whiteSpace: 'nowrap' }}>
+                                <span style={{
+                                  padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold',
+                                  backgroundColor: wait.status === 'accepted' ? '#d1e7dd' : '#fff3cd', 
+                                  color: wait.status === 'accepted' ? '#0f5132' : '#856404'
+                                }}>
+                                  {wait.status === 'waiting' ? 'În așteptare' : wait.status === 'accepted' ? 'Asignat ✓' : wait.status}
+                                </span>
+                              </td>
+                              <td style={{ padding: '12px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                <button 
+                                  onClick={() => handleAssignWaitlist(wait.id, wait.campaign_id, wait.campaign_title)}
+                                  disabled={wait.status === 'accepted'}
+                                  style={{ 
+                                    padding: '6px 12px', 
+                                    backgroundColor: wait.status === 'accepted' ? '#ccc' : '#e63946', 
+                                    color: 'white', 
+                                    border: 'none', 
+                                    borderRadius: '4px', 
+                                    cursor: wait.status === 'accepted' ? 'not-allowed' : 'pointer', 
+                                    fontSize: '11px', 
+                                    fontWeight: 'bold' 
+                                  }}
+                                >
+                                  Asignează
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </section>
 
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )}
-</section>
+                {/* SECȚIUNEA ADĂUGATĂ: MANAGEMENT CHESTIONAR ELIGIBILITATE */}
+                <section style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: '40px', border: '1px solid #e1e4e8' }}>
+                  <h3 style={{ margin: '0 0 20px 0', color: '#2b2d42', borderBottom: '2px solid #f1f3f5', paddingBottom: '10px' }}>
+                    ⚙️ Management Chestionar Eligibilitate
+                  </h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', alignItems: 'start' }}>
+                    
+                    {/* Formular Adăugare */}
+                    <div style={{ backgroundColor: '#f8f9fa', padding: '20px', borderRadius: '6px', border: '1px solid #dee2e6' }}>
+                      <h4 style={{ margin: '0 0 15px 0', color: '#e63946', fontSize: '15px' }}>🆕 Adaugă Întrebare Nouă</h4>
+                      <form onSubmit={handleAddQuestion}>
+                        <div style={{ marginBottom: '12px' }}>
+                          <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', fontWeight: 'bold' }}>Text Întrebare:</label>
+                          <textarea 
+                            value={newQuestionText} 
+                            onChange={(e) => setNewQuestionText(e.target.value)} 
+                            required 
+                            rows="2"
+                            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box', fontFamily: 'sans-serif' }}
+                            placeholder="Ex: Am peste 50 kg"
+                          />
+                        </div>
+                        <div style={{ marginBottom: '15px' }}>
+                          <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', fontWeight: 'bold' }}>Tip Răspuns:</label>
+                          <select value={newQuestionType} onChange={(e) => setNewQuestionType(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', backgroundColor: '#fff' }}>
+                            <option value="checkbox">Căsuță de bifat (Checkbox)</option>
+                            <option value="radio">Opțiune DA/NU (Radio)</option>
+                            <option value="numeric">Valoare Numerică</option>
+                          </select>
+                        </div>
+                        <button type="submit" style={{ width: '100%', padding: '9px', backgroundColor: '#2b2d42', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
+                          Adaugă în Chestionar
+                        </button>
+                      </form>
+                    </div>
+
+                    {/* Listare active cu opțiune Ștergere */}
+                    <div>
+                      <h4 style={{ margin: '0 0 15px 0', color: '#333', fontSize: '15px' }}>📋 Întrebări Active:</h4>
+                      {eligibilityQuestions.length === 0 ? (
+                        <p style={{ color: '#666', fontStyle: 'italic', fontSize: '13px' }}>Nu există întrebări active în baza de date.</p>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '250px', overflowY: 'auto' }}>
+                          {eligibilityQuestions.map((q) => (
+                            <div key={q.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', backgroundColor: '#fff', border: '1px solid #e1e4e8', borderRadius: '4px' }}>
+                              <span style={{ fontSize: '13px', color: '#333' }}><strong>•</strong> {q.question_text}</span>
+                              <button 
+                                type="button" 
+                                onClick={() => handleDeleteQuestion(q.id)}
+                                style={{ padding: '5px 9px', backgroundColor: '#fff', border: '1px solid #dc3545', color: '#dc3545', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}
+                              >
+                                Șterge
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+                </section>
               </>
             )}
 
@@ -466,61 +543,54 @@ function Dashboard({ onLogout }) {
               </main>
 
               {/* LISTARE PROGRAMĂRI INDIVIDUALE (DOAR DONATORI) */}
-{user?.role !== 'admin' && user?.role !== 'ADMIN' && (
-  <aside style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid #e1e4e8' }}>
-    <h3 style={{ margin: '0 0 20px 0', color: '#2b2d42', borderBottom: '2px solid #f1f3f5', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-      🩸 Programările Mele
-    </h3>
-    
-    {myAppointments.length === 0 ? (
-      <p style={{ color: '#666', fontStyle: 'italic', fontSize: '14px' }}>Nu aveți nicio programare activă rezervată.</p>
-    ) : (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-        {/* Înlocuiește randarea din interiorul myAppointments.map în Dashboard.jsx cu aceasta: */}
-{myAppointments.map((app) => (
-  <div key={app.id} style={{ border: '1px solid #f1f3f5', borderRadius: '8px', padding: '16px', backgroundColor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', borderLeft: '4px solid #e63946' }}>
-    
-    {/* Titlul Campaniei cu fallback */}
-    <h4 style={{ margin: '0 0 10px 0', color: '#2b2d42', fontSize: '16px', fontWeight: 'bold', lineHeight: '1.4' }}>
-      {app.campaign_title || 'Campanie de Donare'}
-    </h4>
-    
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#555', marginBottom: '12px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-        <span>📅</span> 
-        {/* Folosește appointment_date sau proprietatea alternativă în funcție de ce vine din obiect */}
-        <span>Data: <strong>{formatDateRo(app.appointment_date || app.campaign_date || '')}</strong></span>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-        <span>🕒</span> 
-        <span>Ora: <strong style={{ color: '#e63946' }}>{formatTimeShort(app.slot_time)}</strong></span>
-      </div>
-    </div>
-
-    <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #f8f9fa', paddingTop: '10px' }}>
-      <button 
-        onClick={() => handleCancelClick(app.id)} 
-        style={{ 
-          padding: '6px 12px', 
-          backgroundColor: '#fff', 
-          border: '1px solid #dc3545', 
-          color: '#dc3545', 
-          borderRadius: '4px', 
-          cursor: 'pointer', 
-          fontSize: '12px',
-          fontWeight: 'bold'
-        }}
-      >
-        Anulează Rezervarea
-      </button>
-    </div>
-
-  </div>
-))}
-      </div>
-    )}
-  </aside>
-)}
+              {user?.role !== 'admin' && user?.role !== 'ADMIN' && (
+                <aside style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid #e1e4e8' }}>
+                  <h3 style={{ margin: '0 0 20px 0', color: '#2b2d42', borderBottom: '2px solid #f1f3f5', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    🩸 Programările Mele
+                  </h3>
+                  
+                  {myAppointments.length === 0 ? (
+                    <p style={{ color: '#666', fontStyle: 'italic', fontSize: '14px' }}>Nu aveți nicio programare activă rezervată.</p>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                      {myAppointments.map((app) => (
+                        <div key={app.id} style={{ border: '1px solid #f1f3f5', borderRadius: '8px', padding: '16px', backgroundColor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', borderLeft: '4px solid #e63946' }}>
+                          <h4 style={{ margin: '0 0 10px 0', color: '#2b2d42', fontSize: '16px', fontWeight: 'bold', lineHeight: '1.4' }}>
+                            {app.campaign_title || 'Campanie de Donare'}
+                          </h4>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#555', marginBottom: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span>📅</span> 
+                              <span>Data: <strong>{formatDateRo(app.appointment_date || app.campaign_date || '')}</strong></span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span>🕒</span> 
+                              <span>Ora: <strong style={{ color: '#e63946' }}>{formatTimeShort(app.slot_time)}</strong></span>
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #f8f9fa', paddingTop: '10px' }}>
+                            <button 
+                              onClick={() => handleCancelClick(app.id)} 
+                              style={{ 
+                                padding: '6px 12px', 
+                                backgroundColor: '#fff', 
+                                border: '1px solid #dc3545', 
+                                color: '#dc3545', 
+                                borderRadius: '4px', 
+                                cursor: 'pointer', 
+                                fontSize: '12px',
+                                fontWeight: 'bold'
+                              }}
+                            >
+                              Anulează Rezervarea
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </aside>
+              )}
 
             </div>
           </>
@@ -530,6 +600,7 @@ function Dashboard({ onLogout }) {
       {selectedCampaign && (
         <AppointmentModal 
           campaign={selectedCampaign} 
+          eligibilityQuestions={eligibilityQuestions} // Pasat dinamic către modal
           onClose={() => setSelectedCampaign(null)} 
           onRefresh={fetchData} 
           onOpenWaitlist={(camp) => {
@@ -542,6 +613,7 @@ function Dashboard({ onLogout }) {
       {assignModalData && (
         <AppointmentModal 
           campaign={assignModalData.campaign}
+          eligibilityQuestions={eligibilityQuestions} // Pasat dinamic și aici
           waitlistId={assignModalData.waitlistId}
           isAssigningFromWaitlist={true}
           onClose={() => setAssignModalData(null)} 
@@ -569,7 +641,6 @@ function Dashboard({ onLogout }) {
           </div>
         </div>
       )}
-      {/* CHATBOX INTELIGENT CONECTAT LA LLM */}
       <AIChatbox />
     </div>
   );
