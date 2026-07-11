@@ -9,6 +9,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     blood_group: str
+    sms_code: str
 
 class UserLogin(BaseModel):
     email: EmailStr
