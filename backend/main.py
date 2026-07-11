@@ -1,6 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from config import settings
+import os
+from dotenv import load_dotenv
+
+# Această linie trebuie să fie prima, înainte de a importa routerele!
+load_dotenv()
 from routers import auth, campaigns, appointments, eligibility, waitlist, ai
 
 app = FastAPI(title="Donare Sange API")

@@ -8,8 +8,28 @@ function Register({ onSwitch, onRegisterSuccess }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [bloodGroup, setBloodGroup] = useState(''); // Rămâne gol inițial pentru a afișa placeholder-ul
+  const [smsCode, setSmsCode] = useState(''); // <-- Adăugat pentru codul SMS
+  const [isCodeSent, setIsCodeSent] = useState(false); // <-- Adăugat pentru a ști dacă s-a trimis codul
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Funcție adăugată pentru a cere trimiterea codului prin SMS
+  const handleSendSMS = async () => {
+    setError('');
+    setSuccess('');
+    if (!phone) {
+      setError('Te rog introdu numărul de telefon mai întâi.');
+      return;
+    }
+
+    try {
+      await axios.post(`http://127.0.0.1:8000/auth/send-sms-code?phone=${encodeURIComponent(phone)}`);
+      setIsCodeSent(true);
+      setSuccess('Codul de verificare a fost trimis! Verifică telefonul sau terminalul backend.');
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Eroare la trimiterea SMS-ului.');
+    }
+  };
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -22,6 +42,12 @@ function Register({ onSwitch, onRegisterSuccess }) {
       return;
     }
 
+    // Validare: Ne asigurăm că a cerut codul SMS înainte de înregistrare
+    if (!isCodeSent) {
+      setError('Trebuie să ceri un cod SMS și să îl introduci înainte de înregistrare.');
+      return;
+    }
+
     try {
       const response = await axios.post('http://127.0.0.1:8000/auth/register', {
         name: name,
@@ -29,7 +55,8 @@ function Register({ onSwitch, onRegisterSuccess }) {
         phone: phone,
         email: email,
         password: password,
-        blood_group: bloodGroup
+        blood_group: bloodGroup,
+        sms_code: smsCode // <-- Trimitem și codul SMS către backend
       });
       
       sessionStorage.setItem('user_session', JSON.stringify(response.data));
@@ -41,6 +68,8 @@ function Register({ onSwitch, onRegisterSuccess }) {
       setEmail('');
       setPassword('');
       setBloodGroup('');
+      setSmsCode('');
+      setIsCodeSent(false);
 
       if (onRegisterSuccess) {
         onRegisterSuccess();
@@ -81,16 +110,46 @@ function Register({ onSwitch, onRegisterSuccess }) {
           />
         </div>
 
+        {/* Modificat pentru a include butonul de "Trimite Cod" lângă input-ul de telefon */}
         <div style={{ marginBottom: '15px' }}>
           <label style={{ display: 'block', marginBottom: '5px' }}>Telefon:</label>
-          <input 
-            type="text" 
-            value={phone} 
-            onChange={(e) => setPhone(e.target.value)} 
-            required 
-            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }}
-          />
+          <div style={{ display: 'table', width: '100%', tableLayout: 'fixed' }}>
+            <div style={{ display: 'table-cell', verticalAlign: 'middle' }}>
+              <input 
+                type="text" 
+                value={phone} 
+                onChange={(e) => setPhone(e.target.value)} 
+                required 
+                placeholder="+407xxxxxxxx"
+                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }}
+              />
+            </div>
+            <div style={{ display: 'table-cell', width: '100px', paddingLeft: '10px', verticalAlign: 'middle' }}>
+              <button 
+                type="button" 
+                onClick={handleSendSMS} 
+                style={{ width: '100%', padding: '8px 0', backgroundColor: '#333', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }}
+              >
+                {isCodeSent ? 'Retrimite' : 'Trimite'}
+              </button>
+            </div>
+          </div>
         </div>
+
+        {/* Câmp adăugat: devine vizibil doar după ce s-a dat click pe "Trimite" */}
+        {isCodeSent && (
+          <div style={{ marginBottom: '15px', backgroundColor: '#f9f9f9', padding: '10px', borderRadius: '4px', border: '1px dashed #e63946' }}>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#e63946' }}>Cod Verificare SMS:</label>
+            <input 
+              type="text" 
+              value={smsCode} 
+              onChange={(e) => setSmsCode(e.target.value)} 
+              required 
+              placeholder="Introduceți codul primit"
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }}
+            />
+          </div>
+        )}
         
         {/* Dropdown-ul actualizat conform cerințelor tale vizuale */}
         <div style={{ marginBottom: '15px' }}>
