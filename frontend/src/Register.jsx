@@ -8,14 +8,14 @@ function Register({ onSwitch, onRegisterSuccess }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [bloodGroup, setBloodGroup] = useState('');
-  const [emailCode, setEmailCode] = useState(''); // Redenumit din smsCode
+  const [emailCode, setEmailCode] = useState(''); 
   
   const [isCodeSent, setIsCodeSent] = useState(false);
   const [isVerified, setIsVerified] = useState(false); 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // 1. Solicită trimiterea codului prin Email (Gratis via Gmail)
+  // 1. Solicită trimiterea codului prin Email
   const handleSendEmailCode = async () => {
     setError('');
     setSuccess('');
@@ -75,7 +75,7 @@ function Register({ onSwitch, onRegisterSuccess }) {
         email: email,
         password: password,
         blood_group: bloodGroup,
-        email_code: emailCode // trimitem codul validat
+        email_code: emailCode 
       });
       
       sessionStorage.setItem('user_session', JSON.stringify(response.data));
@@ -109,7 +109,44 @@ function Register({ onSwitch, onRegisterSuccess }) {
 
       <form onSubmit={handleRegister}>
         
-        {/* INPUT EMAIL + BUTON TRIMITE COD */}
+        {/* 1. NUME */}
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'block', marginBottom: '5px' , fontWeight: 'bold'}}>Nume:</label>
+          <input 
+            type="text" 
+            value={name} 
+            onChange={(e) => setName(e.target.value)} 
+            required 
+            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }}
+          />
+        </div>
+
+        {/* 2. PRENUME */}
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'block', marginBottom: '5px' , fontWeight: 'bold'}}>Prenume:</label>
+          <input 
+            type="text" 
+            value={surname} 
+            onChange={(e) => setSurname(e.target.value)} 
+            required 
+            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }}
+          />
+        </div>
+
+        {/* 3. TELEFON */}
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Telefon:</label>
+          <input 
+            type="text" 
+            value={phone} 
+            onChange={(e) => setPhone(e.target.value)} 
+            required 
+            placeholder="+407xxxxxxxx"
+            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }}
+          />
+        </div>
+
+        {/* 4. EMAIL + BUTON TRIMITE COD */}
         <div style={{ marginBottom: '15px' }}>
           <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Email: (Adresa de email trebuie verificată)</label>
           <div style={{ display: 'table', width: '100%', tableLayout: 'fixed' }}>
@@ -137,7 +174,7 @@ function Register({ onSwitch, onRegisterSuccess }) {
           </div>
         </div>
 
-        {/* INPUT COD EMAIL (Apare doar după trimitere) */}
+        {/* BLOC VERIFICARE COD EMAIL (Apare sub Email doar după ce s-a dat click pe trimitere) */}
         {isCodeSent && (
           <div style={{ marginBottom: '15px', backgroundColor: isVerified ? '#f0fff0' : '#f9f9f9', padding: '10px', borderRadius: '4px', border: isVerified ? '1px solid green' : '1px dashed #e63946' }}>
             <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: isVerified ? 'green' : '#e63946' }}>
@@ -168,41 +205,8 @@ function Register({ onSwitch, onRegisterSuccess }) {
             </div>
           </div>
         )}
-
-        <div style={{ marginBottom: '15px' }}>
-          <label style={{ display: 'block', marginBottom: '5px' , fontWeight: 'bold'}}>Nume:</label>
-          <input 
-            type="text" 
-            value={name} 
-            onChange={(e) => setName(e.target.value)} 
-            required 
-            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }}
-          />
-        </div>
-
-        <div style={{ marginBottom: '15px' }}>
-          <label style={{ display: 'block', marginBottom: '5px' , fontWeight: 'bold'}}>Prenume:</label>
-          <input 
-            type="text" 
-            value={surname} 
-            onChange={(e) => setSurname(e.target.value)} 
-            required 
-            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }}
-          />
-        </div>
-
-        <div style={{ marginBottom: '15px' }}>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Telefon:</label>
-          <input 
-            type="text" 
-            value={phone} 
-            onChange={(e) => setPhone(e.target.value)} 
-            required 
-            placeholder="+407xxxxxxxx"
-            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }}
-          />
-        </div>
         
+        {/* 5. GRUPA SANGUINĂ */}
         <div style={{ marginBottom: '15px' }}>
           <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Grupa sanguină / RH:</label>
           <select 
@@ -224,6 +228,7 @@ function Register({ onSwitch, onRegisterSuccess }) {
           </select>
         </div>
         
+        {/* 6. PAROLĂ */}
         <div style={{ marginBottom: '20px' }}>
           <label style={{ display: 'block', marginBottom: '5px' , fontWeight: 'bold'}}>Parolă:</label>
           <input 

@@ -147,3 +147,19 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
     
     email_verification_store.pop(email, None)
     return new_user
+
+@router.post("/login", response_model=UserOut)
+def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == user_credentials.email).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Date de conectare invalide."
+        )
+    
+    if not pwd_context.verify(user_credentials.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Date de conectare invalide."
+        )
+    return user
