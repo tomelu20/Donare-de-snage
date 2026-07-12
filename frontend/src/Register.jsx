@@ -8,44 +8,44 @@ function Register({ onSwitch, onRegisterSuccess }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [bloodGroup, setBloodGroup] = useState('');
-  const [smsCode, setSmsCode] = useState('');
+  const [emailCode, setEmailCode] = useState(''); // Redenumit din smsCode
   
   const [isCodeSent, setIsCodeSent] = useState(false);
-  const [isVerified, setIsVerified] = useState(false); // <-- Marchează dacă numărul a fost validat cu succes
+  const [isVerified, setIsVerified] = useState(false); 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // 1. Solicită trimiterea codului prin SMS
-  const handleSendSMS = async () => {
+  // 1. Solicită trimiterea codului prin Email (Gratis via Gmail)
+  const handleSendEmailCode = async () => {
     setError('');
     setSuccess('');
-    if (!phone) {
-      setError('Te rog introdu numărul de telefon mai întâi.');
+    if (!email) {
+      setError('Te rog introdu adresa de email mai întâi.');
       return;
     }
 
     try {
-      await axios.post(`http://127.0.0.1:8000/auth/send-sms-code?phone=${encodeURIComponent(phone)}`);
+      await axios.post(`http://127.0.0.1:8000/auth/send-email-code?email=${encodeURIComponent(email)}`);
       setIsCodeSent(true);
-      setSuccess('Codul de verificare a fost trimis pe telefon!');
+      setSuccess('Codul de verificare a fost trimis pe email!');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Eroare la trimiterea SMS-ului.');
+      setError(err.response?.data?.detail || 'Eroare la trimiterea email-ului.');
     }
   };
 
-  // 2. Verifică codul SMS pe loc
+  // 2. Verifică codul de email pe loc
   const handleVerifyCode = async () => {
     setError('');
     setSuccess('');
-    if (!smsCode) {
-      setError('Te rog introdu codul primit prin SMS.');
+    if (!emailCode) {
+      setError('Te rog introdu codul primit pe email.');
       return;
     }
 
     try {
-      await axios.post(`http://127.0.0.1:8000/auth/verify-sms-code?phone=${encodeURIComponent(phone)}&sms_code=${encodeURIComponent(smsCode)}`);
+      await axios.post(`http://127.0.0.1:8000/auth/verify-email-code?email=${encodeURIComponent(email)}&email_code=${encodeURIComponent(emailCode)}`);
       setIsVerified(true);
-      setSuccess('Număr de telefon verificat cu succes! Puteți continua completarea formularului.');
+      setSuccess('Email verificat cu succes! Puteți continua completarea formularului.');
     } catch (err) {
       setError(err.response?.data?.detail || 'Codul introdus este incorect sau a expirat.');
     }
@@ -63,7 +63,7 @@ function Register({ onSwitch, onRegisterSuccess }) {
     }
 
     if (!isVerified) {
-      setError('Trebuie să vă verificați numărul de telefon înainte de a crea contul.');
+      setError('Trebuie să vă verificați adresa de email înainte de a crea contul.');
       return;
     }
 
@@ -75,7 +75,7 @@ function Register({ onSwitch, onRegisterSuccess }) {
         email: email,
         password: password,
         blood_group: bloodGroup,
-        sms_code: smsCode
+        email_code: emailCode // trimitem codul validat
       });
       
       sessionStorage.setItem('user_session', JSON.stringify(response.data));
@@ -87,7 +87,7 @@ function Register({ onSwitch, onRegisterSuccess }) {
       setEmail('');
       setPassword('');
       setBloodGroup('');
-      setSmsCode('');
+      setEmailCode('');
       setIsCodeSent(false);
       setIsVerified(false);
 
@@ -108,49 +108,50 @@ function Register({ onSwitch, onRegisterSuccess }) {
       {success && <p style={{ color: 'green', backgroundColor: '#e3ffe3', padding: '10px', borderRadius: '4px' }}>{success}</p>}
 
       <form onSubmit={handleRegister}>
-        {/* INPUT TELEFON + BUTON TRIMITE */}
+        
+        {/* INPUT EMAIL + BUTON TRIMITE COD */}
         <div style={{ marginBottom: '15px' }}>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Telefon: (Numarul de telefon trebuie verificat)</label>
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Email: (Adresa de email trebuie verificată)</label>
           <div style={{ display: 'table', width: '100%', tableLayout: 'fixed' }}>
             <div style={{ display: 'table-cell', verticalAlign: 'middle' }}>
               <input 
-                type="text" 
-                value={phone} 
-                onChange={(e) => setPhone(e.target.value)} 
+                type="email" 
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)} 
                 required 
-                disabled={isVerified} // Blocat după ce a fost verificat
-                placeholder="+407xxxxxxxx"
+                disabled={isVerified} 
+                placeholder="nume@gmail.com"
                 style={{ width: '100%', padding: '8px', borderRadius: '4px', border: isVerified ? '2px solid green' : '1px solid #ccc', boxSizing: 'border-box', backgroundColor: isVerified ? '#f0fff0' : 'white' }}
               />
             </div>
             <div style={{ display: 'table-cell', width: '100px', paddingLeft: '10px', verticalAlign: 'middle' }}>
               <button 
                 type="button" 
-                onClick={handleSendSMS} 
+                onClick={handleSendEmailCode} 
                 disabled={isVerified}
                 style={{ width: '100%', padding: '8px 0', backgroundColor: isVerified ? '#999' : '#333', color: 'white', border: 'none', borderRadius: '4px', cursor: isVerified ? 'default' : 'pointer', fontSize: '14px', fontWeight: 'bold' }}
               >
-                {isCodeSent ? 'Retrimite cod' : 'Trimite cod'}
+                {isCodeSent ? 'Retrimite' : 'Trimite cod'}
               </button>
             </div>
           </div>
         </div>
 
-        {/* INPUT COD SMS + BUTON VERIFICĂ (Apare doar după ce s-a trimis codul) */}
+        {/* INPUT COD EMAIL (Apare doar după trimitere) */}
         {isCodeSent && (
           <div style={{ marginBottom: '15px', backgroundColor: isVerified ? '#f0fff0' : '#f9f9f9', padding: '10px', borderRadius: '4px', border: isVerified ? '1px solid green' : '1px dashed #e63946' }}>
             <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: isVerified ? 'green' : '#e63946' }}>
-              {isVerified ? '✓ Număr Verificat' : 'Cod Verificare SMS:'}
+              {isVerified ? '✓ Email Verificat' : 'Cod Verificare Email:'}
             </label>
             <div style={{ display: 'table', width: '100%', tableLayout: 'fixed' }}>
               <div style={{ display: 'table-cell', verticalAlign: 'middle' }}>
                 <input 
                   type="text" 
-                  value={smsCode} 
-                  onChange={(e) => setSmsCode(e.target.value)} 
+                  value={emailCode} 
+                  onChange={(e) => setEmailCode(e.target.value)} 
                   required 
                   disabled={isVerified}
-                  placeholder="Introduceți codul"
+                  placeholder="Cod din 6 cifre"
                   style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }}
                 />
               </div>
@@ -189,6 +190,18 @@ function Register({ onSwitch, onRegisterSuccess }) {
             style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }}
           />
         </div>
+
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Telefon:</label>
+          <input 
+            type="text" 
+            value={phone} 
+            onChange={(e) => setPhone(e.target.value)} 
+            required 
+            placeholder="+407xxxxxxxx"
+            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }}
+          />
+        </div>
         
         <div style={{ marginBottom: '15px' }}>
           <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Grupa sanguină / RH:</label>
@@ -210,17 +223,6 @@ function Register({ onSwitch, onRegisterSuccess }) {
             <option value="ABIV-">ABIV (Negativ)</option>
           </select>
         </div>
-
-        <div style={{ marginBottom: '15px' }}>
-          <label style={{ display: 'block', marginBottom: '5px' , fontWeight: 'bold'}}>Email:</label>
-          <input 
-            type="email" 
-            value={email} 
-            onChange={(e) => setEmail(e.target.value)} 
-            required 
-            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }}
-          />
-        </div>
         
         <div style={{ marginBottom: '20px' }}>
           <label style={{ display: 'block', marginBottom: '5px' , fontWeight: 'bold'}}>Parolă:</label>
@@ -235,7 +237,7 @@ function Register({ onSwitch, onRegisterSuccess }) {
         
         <button 
           type="submit" 
-          disabled={!isVerified} // Butonul mare e dezactivat până când numărul e validat
+          disabled={!isVerified} 
           style={{ width: '100%', padding: '10px', backgroundColor: !isVerified ? '#ccc' : '#e63946', color: 'white', border: 'none', borderRadius: '4px', cursor: !isVerified ? 'default' : 'pointer', fontSize: '16px', fontWeight: 'bold' }}
         >
           Creează cont

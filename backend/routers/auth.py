@@ -1,11 +1,11 @@
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 import random
 from datetime import datetime, timedelta
 import os
-import requests
-from dotenv import load_dotenv
-
 from database import get_db
 from schemas.schemas import UserCreate, UserLogin, UserOut
 from models import User
@@ -18,109 +18,111 @@ router = APIRouter(
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# Stocare temporară în memoria RAM pentru codurile SMS generate
-# Structură: {"07xxxxxxx": {"code": "123456", "expires_at": datetime, "verified": False}}
-sms_verification_store = {}
+# Stocare temporară în memoria RAM pentru codurile trimise pe EMAIL[cite: 2]
+email_verification_store = {}
 
-def send_sms_via_provider(phone: str, code: str):
-    load_dotenv()
-    connection_id = os.getenv("SMSLINK_CONNECTION_ID")
-    password = os.getenv("SMSLINK_PASSWORD")
+def send_email_via_gmail(to_email: str, code: str):
+    email_user = os.getenv("EMAIL_USER")
+    email_password = os.getenv("EMAIL_PASSWORD")
     
-    if not connection_id or not password:
-        print("[CRITICAL] Cheile SMSLink lipsesc din .env sau fișierul .env nu este în folderul corect!")
+    if not email_user or not email_password:
+        print("[CRITICAL] Datele de logare pentru Gmail lipsesc din .env!")
         return False
         
-    message = f"Codul tau de verificare pentru aplicatia Donare este: {code}. Valabil 5 minute."
+    message = MIMEMultipart()
+    message["From"] = f"Donare Sange <{email_user}>"
+    message["To"] = to_email
+    message["Subject"] = "Codul tau de verificare - Donare Sange"
     
-    # Logică de curățare pentru formatul SMSLink (10 cifre)
-    clean_phone = phone.replace("+", "").replace(" ", "")
-    if clean_phone.startswith("407") and len(clean_phone) == 11:
-        clean_phone = "0" + clean_phone[2:]
-    elif clean_phone.startswith("7") and len(clean_phone) == 9:
-        clean_phone = "0" + clean_phone
-
-    url = "https://secure.smslink.ro/sms/gateway/communicate/index.php"
-    params = {
-        "connection_id": connection_id,
-        "password": password,
-        "to": clean_phone,
-        "message": message
-    }
+    corp_email = f"""
+    <html>
+        <body>
+            <h3>Salutare!</h3>
+            <p>Codul tău de verificare pentru crearea contului în aplicația Donare Sânge este:</p>
+            <h2 style="color: #e63946; font-size: 24px; letter-spacing: 2px;">{code}</h2>
+            <p>Codul este valabil timp de 5 minute.</p>
+        </body>
+    </html>
+    """
+    message.attach(MIMEText(corp_email, "html"))
     
     try:
-        response = requests.get(url, params=params, timeout=5)
-        # SMSLink întoarce succes dacă răspunsul conține "status=1" sau "MESSAGE;1;"
-        if "status=1" in response.text or "MESSAGE;1;" in response.text:
-            print(f"[SMSLink Success] Mesajul a fost transmis cu succes către {clean_phone}!")
-            return True
-        else:
-            print(f"[SMSLink Error] SMS-ul nu a plecat. Răspuns primit: {response.text}")
-            return False
+        # Ne conectăm gratuit la serverul SMTP Google securizat
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+        server.login(email_user, email_password)
+        server.sendmail(email_user, to_email, message.as_string())
+        server.quit()
+        print(f"[Email Success] Codul a fost trimis către {to_email}!")
+        return True
     except Exception as e:
-        print(f"[SMSLink Exception] Eroare de conexiune la rețea: {e}")
+        print(f"[Email Exception] Eroare la trimiterea mailului: {e}")
         return False
 
-@router.post("/send-sms-code")
-def send_sms_code(phone: str):
-    if not phone or len(phone) < 9:
+@router.post("/send-email-code")
+def send_email_code(email: str):
+    if not email or "@" not in email:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Număr de telefon invalid."
+            detail="Adresă de email invalidă."
         )
     
     code = f"{random.randint(100000, 999999)}"
     
-    sms_verification_store[phone] = {
+    email_verification_store[email] = {
         "code": code,
         "expires_at": datetime.now() + timedelta(minutes=5),
-        "verified": False  # Inițial nu este verificat
+        "verified": False
     }
     
-    send_sms_via_provider(phone, code)
-    return {"detail": "Codul de verificare a fost trimis prin SMS."}
+    succes = send_email_via_gmail(email, code)
+    if not succes:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Nu s-a putut trimite email-ul de verificare. Reîncearcă."
+        )
+        
+    return {"detail": "Codul de verificare a fost trimis pe email."}
 
-# ENDPOINT NOU: Verifică codul pe loc
-@router.post("/verify-sms-code")
-def verify_sms_code(phone: str, sms_code: str):
-    verification_data = sms_verification_store.get(phone)
+@router.post("/verify-email-code")
+def verify_email_code(email: str, email_code: str):
+    verification_data = email_verification_store.get(email)
     
     if not verification_data:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Nu s-a solicitat niciun cod pentru acest număr."
+            detail="Nu s-a solicitat niciun cod pentru această adresă."
         )
         
     if datetime.now() > verification_data["expires_at"]:
-        sms_verification_store.pop(phone, None)
+        email_verification_store.pop(email, None)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Codul SMS a expirat. Solicită un cod nou."
+            detail="Codul a expirat. Solicită un cod nou."
         )
         
-    if verification_data["code"] != sms_code:
+    if verification_data["code"] != email_code:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Codul SMS introdus este incorect."
+            detail="Codul introdus este incorect."
         )
     
-    # Marcăm numărul ca verificat cu succes în memorie
-    sms_verification_store[phone]["verified"] = True
-    return {"detail": "Numărul de telefon a fost verificat cu succes!"}
+    email_verification_store[email]["verified"] = True
+    return {"detail": "Adresa de email a fost verificată cu succes!"}
 
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 def register(user_data: UserCreate, db: Session = Depends(get_db)):
-    phone = user_data.phone
+    email = user_data.email
     
-    # Verificăm dacă numărul a trecut prin procesul de validare pe loc
-    verification_data = sms_verification_store.get(phone)
+    # Validăm dacă emailul a trecut prin procesul de verificare
+    verification_data = email_verification_store.get(email)
     if not verification_data or not verification_data.get("verified"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Trebuie să vă verificați numărul de telefon prin SMS înainte de înregistrare."
+            detail="Trebuie să vă verificați adresa de email înainte de înregistrare."
         )
 
-    # Verifică dacă email-ul există deja
+    # Verifică dacă email-ul există deja în baza de date[cite: 2]
     existing_user = db.query(User).filter(User.email == user_data.email).first()
     if existing_user:
         raise HTTPException(
@@ -143,22 +145,5 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
     
-    # Curățăm memoria după utilizare
-    sms_verification_store.pop(phone, None)
+    email_verification_store.pop(email, None)
     return new_user
-
-@router.post("/login", response_model=UserOut)
-def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == user_credentials.email).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Date de conectare invalide."
-        )
-    
-    if not pwd_context.verify(user_credentials.password, user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Date de conectare invalide."
-        )
-    return user
