@@ -13,7 +13,7 @@ function AppointmentModal({ campaign, eligibilityQuestions = [], onClose, onRefr
   const [guestName, setGuestName] = useState('');
   const [guestSurname, setGuestSurname] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
-  const [guestEmail, setGuestEmail] = useState(''); // <--- ADĂUGAT: State-ul pentru e-mailul invitatului
+  const [guestEmail, setGuestEmail] = useState(''); 
   const [guestBloodGroup, setGuestBloodGroup] = useState('Nu știu');
 
   // --- State-uri pentru Formularul de Eligibilitate Dinamic ---
@@ -128,7 +128,6 @@ function AppointmentModal({ campaign, eligibilityQuestions = [], onClose, onRefr
       return;
     }
 
-    // Validare completă: verifică și dacă e-mailul este prezent pentru altcineva
     if (isForSomeoneElse && (!guestName || !guestSurname || !guestPhone || !guestEmail)) {
       setError('Vă rugăm să completați toate datele persoanei pe care o programați.');
       return;
@@ -156,7 +155,7 @@ function AppointmentModal({ campaign, eligibilityQuestions = [], onClose, onRefr
           guest_name: isForSomeoneElse ? guestName : null,
           guest_surname: isForSomeoneElse ? guestSurname : null,
           guest_phone: isForSomeoneElse ? guestPhone : null,
-          guest_email: isForSomeoneElse ? guestEmail : null, // <--- ADĂUGAT: Transmitere către API
+          guest_email: isForSomeoneElse ? guestEmail : null, 
           guest_blood_group: isForSomeoneElse ? guestBloodGroup : "Nu știu"
         });
         
@@ -300,7 +299,7 @@ function AppointmentModal({ campaign, eligibilityQuestions = [], onClose, onRefr
                         >
                           {slot.time.substring(0, 5)}
                           <span style={{ display: 'block', fontSize: '10px', color: isDisabled ? '#999' : '#666', marginTop: '2px' }}>
-                            ({slot.available_slots} locuri)
+                            {slot.available_slots}/{campaign.capacity_per_slot} locuri disponibile
                           </span>
                         </button>
                       );
@@ -387,7 +386,7 @@ function AppointmentModal({ campaign, eligibilityQuestions = [], onClose, onRefr
         )}
       </div>
 
-      {/* MODAL INTERN MODIFICAT: STRUCTURĂ FLEX CU SCROLL INDEPENDENT DOAR PE CONȚINUT */}
+      {/* MODAL INTERN Chestionar Eligibilitate */}
       {showEligibilityModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 3000 }}>
           <div style={{ backgroundColor: 'white', borderRadius: '8px', maxWidth: '500px', width: '90%', maxHeight: '80vh', display: 'flex', flexDirection: 'column', fontFamily: 'sans-serif', boxShadow: '0 5px 25px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
@@ -410,82 +409,89 @@ function AppointmentModal({ campaign, eligibilityQuestions = [], onClose, onRefr
                 ) : (
                   eligibilityQuestions.map((q) => (
                     <div key={q.id} style={{ borderBottom: '1px solid #f1f3f5', paddingBottom: '12px' }}>
-                      <span style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#333', marginBottom: '8px' }}>
-                        {q.question_text}
-                      </span>
                       
                       {/* 1. Tip Răspuns: NUMERIC */}
                       {q.type === 'numeric' && (
-                        <input 
-                          type="number" 
-                          value={checklist[q.id] || ''} 
-                          onChange={(e) => handleInputChange(q.id, e.target.value)}
-                          placeholder="Introduceți valoarea..."
-                          style={{ width: '100%', padding: '6px 10px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '13px', boxSizing: 'border-box' }}
-                        />
+                        <>
+                          <span style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#333', marginBottom: '8px' }}>
+                            {q.question_text}
+                          </span>
+                          <input 
+                            type="number" 
+                            value={checklist[q.id] || ''} 
+                            onChange={(e) => handleInputChange(q.id, e.target.value)}
+                            placeholder="Introduceți valoarea..."
+                            style={{ width: '100%', padding: '6px 10px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '13px', boxSizing: 'border-box' }}
+                          />
+                        </>
                       )}
 
                       {/* 2. Tip Răspuns: RADIO (DA / NU) */}
                       {q.type === 'radio' && (
-                        <div style={{ display: 'flex', gap: '20px', marginTop: '4px' }}>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer' }}>
-                            <input 
-                              type="radio" 
-                              name={`radio-${q.id}`} 
-                              checked={checklist[q.id] === 'da'} 
-                              onChange={() => handleInputChange(q.id, 'da')} 
-                            />
-                            Da
-                          </label>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer' }}>
-                            <input 
-                              type="radio" 
-                              name={`radio-${q.id}`} 
-                              checked={checklist[q.id] === 'nu'} 
-                              onChange={() => handleInputChange(q.id, 'nu')} 
-                            />
-                            Nu
-                          </label>
-                        </div>
+                        <>
+                          <span style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#333', marginBottom: '8px' }}>
+                            {q.question_text}
+                          </span>
+                          <div style={{ display: 'flex', gap: '20px', marginTop: '4px' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer' }}>
+                              <input 
+                                type="radio" 
+                                name={`radio-${q.id}`} 
+                                checked={checklist[q.id] === 'da'} 
+                                onChange={() => handleInputChange(q.id, 'da')} 
+                              />
+                              Da
+                            </label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer' }}>
+                              <input 
+                                type="radio" 
+                                name={`radio-${q.id}`} 
+                                checked={checklist[q.id] === 'nu'} 
+                                onChange={() => handleInputChange(q.id, 'nu')} 
+                              />
+                              Nu
+                            </label>
+                          </div>
+                        </>
                       )}
 
-                      {/* 3. Tip Răspuns: CHECKBOX */}
+                      {/* 3. Tip Răspuns: CHECKBOX inline (Căsuța și textul pe aceeași linie) */}
                       {(q.type === 'checkbox' || !q.type) && (
-                        <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '13px', cursor: 'pointer' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', fontWeight: '500', color: '#333', cursor: 'pointer', width: '100%' }}>
                           <input 
                             type="checkbox" 
                             checked={!!checklist[q.id]} 
                             onChange={() => handleCheckboxChange(q.id)} 
-                            style={{ marginTop: '2px' }} 
-                        />
-                        Confirm starea indicată mai sus
-                      </label>
-                    )}
-                  </div>
-                ))
-              )}
+                            style={{ cursor: 'pointer', transform: 'scale(1.1)' }} 
+                          />
+                          <span>{q.question_text}</span>
+                        </label>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
-          </div>
 
-          {/* FOOTER FIX JOS */}
-          <div style={{ marginTop: 'auto', padding: '15px 25px 20px 25px', borderTop: '1px solid #eee', display: 'flex', justifyContent: 'flex-end', backgroundColor: '#fdfdfd' }}>
-            <button
-              type="button"
-              onClick={() => setShowEligibilityModal(false)}
-              style={{ 
-                padding: '10px 24px', 
-                backgroundColor: isEligible ? '#198754' : '#e63946', 
-                color: 'white', 
-                border: 'none', 
-                borderRadius: '4px', 
-                cursor: 'pointer', 
-                fontWeight: 'bold',
-                fontSize: '13px'
-              }}
-            >
-              {isEligible ? 'Salvează & Continuă' : 'Închide (Neelegibil)'}
-            </button>
-          </div>
+            {/* FOOTER FIX JOS */}
+            <div style={{ marginTop: 'auto', padding: '15px 25px 20px 25px', borderTop: '1px solid #eee', display: 'flex', justifyContent: 'flex-end', backgroundColor: '#fdfdfd' }}>
+              <button
+                type="button"
+                onClick={() => setShowEligibilityModal(false)}
+                style={{ 
+                  padding: '10px 24px', 
+                  backgroundColor: isEligible ? '#198754' : '#e63946', 
+                  color: 'white', 
+                  border: 'none', 
+                  borderRadius: '4px', 
+                  cursor: 'pointer', 
+                  fontWeight: 'bold',
+                  fontSize: '13px'
+                }}
+              >
+                {isEligible ? 'Salvează & Continuă' : 'Închide (Neelegibil)'}
+              </button>
+            </div>
 
           </div>
         </div>
