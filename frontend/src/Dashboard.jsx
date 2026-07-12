@@ -27,6 +27,10 @@ function Dashboard({ onLogout }) {
   const [appointmentToCancel, setAppointmentToCancel] = useState(null); 
   const [successNotification, setSuccessNotification] = useState(''); 
 
+  // --- STATE-URI NOI PENTRU MODALUL REZOLVAT DE CONFIRMARE REMINDER & POP-UP NOTIFICARE ---
+  const [reminderConfirmModal, setReminderConfirmModal] = useState({ isOpen: false, campaign: null });
+  const [reminderResultModal, setReminderResultModal] = useState({ isOpen: false, isSuccess: true, message: '' });
+
   // State-uri pentru Formularul de Campanie Nouă (Admin)
   const [newCampTitle, setNewCampTitle] = useState('');
   const [newCampLocation, setNewCampLocation] = useState('');
@@ -223,6 +227,30 @@ function Dashboard({ onLogout }) {
   const formatTimeShort = (timeString) => {
     if (!timeString) return '';
     return timeString.substring(0, 5);
+  };
+
+  // --- FUNCȚIA EFECTIVĂ DE TRIMITERE APELATĂ DIN MODALUL POP-UP ---
+  const executeSendReminders = async () => {
+    const camp = reminderConfirmModal.campaign;
+    if (!camp) return;
+    
+    // Închidem modalul de confirmare
+    setReminderConfirmModal({ isOpen: false, campaign: null });
+
+    try {
+      const response = await axios.post(`http://127.0.0.1:8000/reminders/campaign/${camp.id}?current_user_id=${user.id}`);
+      setReminderResultModal({
+        isOpen: true,
+        isSuccess: true,
+        message: response.data.detail
+      });
+    } catch (err) {
+      setReminderResultModal({
+        isOpen: true,
+        isSuccess: false,
+        message: err.response?.data?.detail || 'Nu există programări active (confirmate) sau a apărut o eroare.'
+      });
+    }
   };
 
   return (
@@ -522,20 +550,40 @@ function Dashboard({ onLogout }) {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
                     {campaigns.map((camp) => (
                       <div key={camp.id} style={{ border: '1px solid #e1e4e8', borderRadius: '6px', padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff' }}>
-                        <div>
+                        <div style={{ flex: 1, paddingRight: '15px' }}>
                           <h4 style={{ margin: '0 0 8px 0', color: '#e63946', fontSize: '18px' }}>{camp.title}</h4>
                           <p style={{ margin: '0 0 5px 0', fontSize: '14px', color: '#333' }}><strong>Locație:</strong> {camp.location_name}</p>
                           <p style={{ margin: '0 0 5px 0', fontSize: '14px', color: '#666' }}><strong>Adresă:</strong> {camp.address}</p>
-                          <div style={{ display: 'flex', gap: '15px', marginTop: '10px', fontSize: '13px', color: '#444' }}>
+                          <div style={{ display: 'flex', gap: '15px', marginTop: '10px', fontSize: '13px', color: '#444', flexWrap: 'wrap' }}>
                             <span>📅 <strong>Perioadă:</strong> {formatDateRo(camp.date)}{camp.end_date && camp.end_date !== camp.date ? ` -> ${formatDateRo(camp.end_date)}` : ''}</span>
                             <span>🕒 <strong>Program:</strong> {formatTimeShort(camp.start_time)} - {formatTimeShort(camp.end_time)}</span>
                           </div>
                         </div>
-                        <button 
-                          onClick={() => setSelectedCampaign(camp)} 
-                          style={{ padding: '10px 20px', backgroundColor: '#e63946', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}>
-                          Programează-te
-                        </button>
+
+                        {/* GRUPARE FIXĂ BUTOANE PE ACELAȘI RÂND CU e.stopPropagation REZOLVAT */}
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                          {/* BUTONUL TRIMITE REMINDER - Deschide modalul pop-up intern în loc de window.confirm */}
+                          {(user?.role === 'admin' || user?.role === 'ADMIN') && (
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation(); // <--- OPREȘTE DUBLA INVOCARE A APELULUI HTTP!
+                                setReminderConfirmModal({ isOpen: true, campaign: camp });
+                              }} 
+                              style={{ padding: '10px 15px', backgroundColor: '#2b2d42', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}>
+                              🔔 Trimite Reminder
+                            </button>
+                          )}
+
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedCampaign(camp);
+                            }} 
+                            style={{ padding: '10px 20px', backgroundColor: '#e63946', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}>
+                            Programează-te
+                          </button>
+                        </div>
+
                       </div>
                     ))}
                   </div>
@@ -596,6 +644,56 @@ function Dashboard({ onLogout }) {
           </>
         )}
       </div>
+
+      {/* ========================================================================= */}
+      {/* 1. POP-UP MODAL: CONFIRMARE IN-APP (ÎNLOCUIEȘTE COMPLET WINDOW.CONFIRM) */}
+      {reminderConfirmModal.isOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999 }}>
+          <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '8px', maxWidth: '450px', width: '90%', boxShadow: '0 4px 25px rgba(0,0,0,0.2)', textAlign: 'center', fontFamily: 'sans-serif' }}>
+            <div style={{ fontSize: '40px', marginBottom: '15px' }}>🔔</div>
+            <h3 style={{ margin: '0 0 15px 0', color: '#2b2d42' }}>Confirmare Trimitere</h3>
+            <p style={{ color: '#555', fontSize: '15px', lineHeight: '1.5', marginBottom: '25px' }}>
+              Sigur doriți să trimiteți email-uri de reminder tuturor donatorilor cu programare activă din campania: <br/>
+              <strong style={{ color: '#e63946' }}>{reminderConfirmModal.campaign?.title}</strong>?
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button 
+                onClick={() => setReminderConfirmModal({ isOpen: false, campaign: null })} 
+                style={{ padding: '10px 20px', backgroundColor: '#f1f3f5', color: '#333', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}>
+                Anulează
+              </button>
+              <button 
+                onClick={executeSendReminders} 
+                style={{ padding: '10px 24px', backgroundColor: '#e63946', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}>
+                Da, Trimite
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. POP-UP MODAL: REZULTAT EXECUTARE TRIMITERE (SUCCES / EROARE) */}
+      {reminderResultModal.isOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999 }}>
+          <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '8px', maxWidth: '420px', width: '90%', boxShadow: '0 4px 25px rgba(0,0,0,0.2)', textAlign: 'center', fontFamily: 'sans-serif' }}>
+            <div style={{ fontSize: '45px', marginBottom: '15px' }}>
+              {reminderResultModal.isSuccess ? '✔️' : '❌'}
+            </div>
+            <h3 style={{ margin: '0 0 12px 0', color: reminderResultModal.isSuccess ? '#198754' : '#dc3545' }}>
+              {reminderResultModal.isSuccess ? 'Operațiune Reușită' : 'Eroare la solicitare'}
+            </h3>
+            <p style={{ color: '#555', fontSize: '14px', lineHeight: '1.5', marginBottom: '25px' }}>
+              {reminderResultModal.message}
+            </p>
+            <button 
+              onClick={() => setReminderResultModal({ isOpen: false, isSuccess: true, message: '' })} 
+              style={{ padding: '9px 25px', backgroundColor: '#2b2d42', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}>
+              Închide
+            </button>
+          </div>
+        </div>
+      )}
+      {/* ========================================================================= */}
 
       {selectedCampaign && (
         <AppointmentModal 

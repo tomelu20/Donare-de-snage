@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 # Această linie trebuie să fie prima, înainte de a importa routerele!
 load_dotenv()
-from routers import auth, campaigns, appointments, eligibility, waitlist, ai
+from routers import auth, campaigns, appointments, eligibility, waitlist, ai, reminders
 
 app = FastAPI(title="Donare Sange API")
 
@@ -28,6 +28,7 @@ app.include_router(appointments.router)
 app.include_router(eligibility.router)
 app.include_router(waitlist.router)
 app.include_router(ai.router)
+app.include_router(reminders.router)
 
 @app.get("/")
 def root():
