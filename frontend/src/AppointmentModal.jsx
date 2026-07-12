@@ -13,6 +13,7 @@ function AppointmentModal({ campaign, eligibilityQuestions = [], onClose, onRefr
   const [guestName, setGuestName] = useState('');
   const [guestSurname, setGuestSurname] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
+  const [guestEmail, setGuestEmail] = useState(''); // <--- ADĂUGAT: State-ul pentru e-mailul invitatului
   const [guestBloodGroup, setGuestBloodGroup] = useState('Nu știu');
 
   // --- State-uri pentru Formularul de Eligibilitate Dinamic ---
@@ -127,7 +128,8 @@ function AppointmentModal({ campaign, eligibilityQuestions = [], onClose, onRefr
       return;
     }
 
-    if (isForSomeoneElse && (!guestName || !guestSurname || !guestPhone)) {
+    // Validare completă: verifică și dacă e-mailul este prezent pentru altcineva
+    if (isForSomeoneElse && (!guestName || !guestSurname || !guestPhone || !guestEmail)) {
       setError('Vă rugăm să completați toate datele persoanei pe care o programați.');
       return;
     }
@@ -154,6 +156,7 @@ function AppointmentModal({ campaign, eligibilityQuestions = [], onClose, onRefr
           guest_name: isForSomeoneElse ? guestName : null,
           guest_surname: isForSomeoneElse ? guestSurname : null,
           guest_phone: isForSomeoneElse ? guestPhone : null,
+          guest_email: isForSomeoneElse ? guestEmail : null, // <--- ADĂUGAT: Transmitere către API
           guest_blood_group: isForSomeoneElse ? guestBloodGroup : "Nu știu"
         });
         
@@ -242,6 +245,10 @@ function AppointmentModal({ campaign, eligibilityQuestions = [], onClose, onRefr
                         <input type="text" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} required style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box', fontSize: '13px' }} />
                       </div>
                       <div>
+                        <label style={{ display: 'block', fontSize: '12px', marginBottom: '3px', color: '#333' }}>Email Destinatar Reminder:</label>
+                        <input type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} required style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box', fontSize: '13px' }} placeholder="ex: exemplu@mail.com" />
+                      </div>
+                      <div style={{ gridColumn: 'span 2' }}>
                         <label style={{ display: 'block', fontSize: '12px', marginBottom: '3px', color: '#333' }}>Grupa Sanguină:</label>
                         <select value={guestBloodGroup} onChange={(e) => setGuestBloodGroup(e.target.value)} style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box', fontSize: '13px', backgroundColor: '#fff' }}>
                           <option value="Nu știu">Nu știu</option>
@@ -460,7 +467,7 @@ function AppointmentModal({ campaign, eligibilityQuestions = [], onClose, onRefr
             </div>
           </div>
 
-          {/* FOOTER FIX JOS - BUTONUL ESTE ACUM COCOȚAT PE ECRAN ȘI NU SE MAI ASCUNDE SUB SCROLL */}
+          {/* FOOTER FIX JOS */}
           <div style={{ marginTop: 'auto', padding: '15px 25px 20px 25px', borderTop: '1px solid #eee', display: 'flex', justifyContent: 'flex-end', backgroundColor: '#fdfdfd' }}>
             <button
               type="button"

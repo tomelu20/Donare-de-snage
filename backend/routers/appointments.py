@@ -139,12 +139,12 @@ def create_appointment(appointment_data: AppointmentCreate, db: Session = Depend
     insert_query = text("""
         INSERT INTO appointments (
             campaign_id, user_id, slot_time, appointment_date, status, created_at,
-            is_for_someone_else, guest_name, guest_surname, guest_phone, guest_blood_group
+            is_for_someone_else, guest_name, guest_surname, guest_phone, guest_email, guest_blood_group
         )
         OUTPUT INSERTED.id, INSERTED.campaign_id, INSERTED.user_id, INSERTED.slot_time, INSERTED.status, INSERTED.created_at
         VALUES (
             :camp_id, :user_id, :slot_time, :app_date, 'confirmed', GETDATE(),
-            :is_someone_else, :g_name, :g_surname, :g_phone, :g_blood
+            :is_someone_else, :g_name, :g_surname, :g_phone, :g_email, :g_blood
         )
     """)
     
@@ -157,6 +157,7 @@ def create_appointment(appointment_data: AppointmentCreate, db: Session = Depend
         "g_name": appointment_data.guest_name,
         "g_surname": appointment_data.guest_surname,
         "g_phone": appointment_data.guest_phone,
+        "g_email": appointment_data.guest_email, # <--- ADĂUGAT
         "g_blood": appointment_data.guest_blood_group
     })
     

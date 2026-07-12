@@ -65,6 +65,7 @@ class AppointmentCreate(BaseModel):
     guest_name: Optional[str] = None
     guest_surname: Optional[str] = None
     guest_phone: Optional[str] = None
+    guest_email: Optional[EmailStr] = None
     guest_blood_group: Optional[str] = "Nu știu"
 
 # Caută clasa AppointmentOut în schemas.py și actualizeaz-o așa:

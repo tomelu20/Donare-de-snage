@@ -1,0 +1,1 @@
+ALTER TABLE appointments ADD guest_email VARCHAR(100) NULL;

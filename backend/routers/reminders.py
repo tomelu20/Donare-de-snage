@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
-from sqlalchemy import func  # <--- Adăugat pentru normalizarea căutării
+from sqlalchemy import text  # <--- Adăugat pentru query native securizate
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
 from database import get_db
-from models import Appointment, User, Campaign
+from models import User, Campaign
 
 router = APIRouter(
     prefix="/reminders",
@@ -85,33 +85,46 @@ def send_campaign_reminders(
     if not campaign:
         raise HTTPException(status_code=404, detail="Campania nu a fost găsită.")
         
-    # 3. Soluție Anti-Duplicare: Convertim statusul la litere mici direct în interogare SQL
-    # Astfel, indiferent de setarea bazei de date, se va face o singură verificare strictă
-    active_appointments = db.query(
-    Appointment.user_id,
-    Appointment.slot_time,
-    Appointment.appointment_date
-    ).filter(
-    Appointment.campaign_id == campaign_id,
-    func.lower(Appointment.status) == "confirmed",
-    Appointment.is_for_someone_else == False  # <--- ADĂUGĂ LINIA ASTA AICI
-    ).all()
+    # 3. Preluăm toate programările confirmate folosind SQL brut pentru a ocoli eroarea de mapare Enum din SQLAlchemy
+    query = text("""
+        SELECT id, user_id, slot_time, appointment_date, is_for_someone_else, 
+               guest_name, guest_surname, guest_email 
+        FROM appointments 
+        WHERE campaign_id = :campaign_id 
+          AND status IN ('confirmed', 'CONFIRMED')
+    """)
+    active_appointments = db.execute(query, {"campaign_id": campaign_id}).mappings().all()
     
     if not active_appointments:
         raise HTTPException(status_code=400, detail="Nu există programări active (confirmate) pentru această campanie.")
         
-    # 4. Trimitere asincronă în background
+    # 4. Trimitere asincronă în background cu rutare dinamică a mailului către cel programat
     sent_count = 0
-    for app_user_id, app_slot_time, app_appointment_date in active_appointments:
-        donor = db.query(User).filter(User.id == app_user_id).first()
-        if donor and donor.email:
-            date_label = app_appointment_date.strftime('%d-%m-%Y') if app_appointment_date else campaign.date.strftime('%d-%m-%Y')
-            time_label = str(app_slot_time)[:5]
+    for app in active_appointments:
+        target_email = None
+        target_name = None
+        
+        # Dacă este o programare făcută în numele altei persoane, trimitem direct la e-mailul invitatului
+        if app["is_for_someone_else"]:
+            if app["guest_email"]:
+                target_email = app["guest_email"]
+                target_name = f"{app['guest_name']} {app['guest_surname']}"
+        else:
+            # Altfel, trimite către contul utilizatorului de bază
+            donor = db.query(User).filter(User.id == app["user_id"]).first()
+            if donor and donor.email:
+                target_email = donor.email
+                target_name = f"{donor.name} {donor.surname}"
+                
+        # Înregistrăm task-ul de trimitere asincronă dacă e-mailul și numele sunt valide
+        if target_email and target_name:
+            date_label = app["appointment_date"].strftime('%d-%m-%Y') if app["appointment_date"] else campaign.date.strftime('%d-%m-%Y')
+            time_label = str(app["slot_time"])[:5]
             
             background_tasks.add_task(
                 send_reminder_email_task,
-                email=donor.email,
-                name=f"{donor.name} {donor.surname}",
+                email=target_email,
+                name=target_name,
                 campaign_title=campaign.title,
                 location=f"{campaign.location_name} ({campaign.address})",
                 date_str=date_label,
@@ -119,4 +132,4 @@ def send_campaign_reminders(
             )
             sent_count += 1
             
-    return {"detail": f"S-a pornit trimiterea în fundal a reminderelor către {sent_count} donatori."}
+    return {"detail": f"S-a pornit trimiterea în fundal a reminderelor către {sent_count} persoane."}

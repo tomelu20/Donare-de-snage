@@ -73,6 +73,7 @@ class Appointment(Base):
     guest_name = Column(String(100), nullable=True)
     guest_surname = Column(String(100), nullable=True)
     guest_phone = Column(String(15), nullable=True)
+    guest_email = Column(String(100), nullable=True)
     guest_blood_group = Column(String(10), nullable=True, default="Nu știu")
     appointment_date = Column(Date, nullable=True)
     
