@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
+import ReactMarkdown from 'react-markdown';
 
 function AIChatbox() {
   const [isOpen, setIsOpen] = useState(false);
@@ -57,10 +58,7 @@ function AIChatbox() {
       const response = await axios.post('http://127.0.0.1:8000/ai/chat', { message: userMessage });
       setMessages((prev) => [...prev, { sender: 'ai', text: response.data.reply }]);
     } catch (error) {
-      // Verificăm dacă eroarea este de tip HTTP 429 (Too Many Requests / Rate Limit)
-      // Sau poți simula asta dacă backend-ul îți trimite o structură specifică
-      const secondsToWait = error.response?.data?.retry_after || 60; // înlocuiește cu proprietatea reală din backend sau lasă default 60
-
+      const secondsToWait = error.response?.data?.retry_after || 60;
       setCooldownTime(secondsToWait);
       setIsCooldownActive(true);
 
@@ -88,7 +86,7 @@ function AIChatbox() {
           boxShadow: '0 8px 30px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column',
           marginBottom: '12px', border: '1px solid #f5e6e6', overflow: 'hidden'
         }}>
-          {/* Header Fereastră - Acum Roșu Medical/Donare */}
+          {/* Header Fereastră */}
           <div style={{ backgroundColor: PRIMARY_RED, color: 'white', padding: '15px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '18px' }}>🩸</span> 
@@ -107,9 +105,16 @@ function AIChatbox() {
                 padding: '10px 14px', borderRadius: '12px', maxWidth: '80%',
                 fontSize: '14px', boxShadow: msg.sender === 'ai' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
                 border: msg.sender === 'ai' ? '1px solid #f0e2e2' : 'none',
-                lineHeight: '1.45', whiteSpace: 'pre-line'
+                lineHeight: '1.45'
               }}>
-                {msg.text}
+                {/* Soluție stabilă: Am eliminat props-ul de stil direct de pe ReactMarkdown */}
+                {msg.sender === 'ai' ? (
+                  <div className="markdown-chat-reply">
+                    <ReactMarkdown>{msg.text}</ReactMarkdown>
+                  </div>
+                ) : (
+                  msg.text
+                )}
               </div>
             ))}
             
@@ -120,7 +125,7 @@ function AIChatbox() {
               </div>
             )}
 
-            {/* Mesajul dinamic de Cooldown (Când se termină tokenii) */}
+            {/* Mesajul dinamic de Cooldown */}
             {isCooldownActive && (
               <div style={{ 
                 alignSelf: 'center', 
@@ -148,7 +153,7 @@ function AIChatbox() {
         display: 'flex', alignItems: 'center', backgroundColor: PRIMARY_RED, 
         padding: '8px 14px', borderRadius: '25px', boxShadow: '0 4px 15px rgba(155,34,38,0.25)',
         width: '320px', gap: '10px', border: '1px solid rgba(255,255,255,0.1)',
-        opacity: isCooldownActive ? 0.8 : 1 // Schimbă opacitatea subtil când e blocat
+        opacity: isCooldownActive ? 0.8 : 1
       }}>
         {/* Cercul Don AI Avatar */}
         <div style={{
@@ -158,14 +163,14 @@ function AIChatbox() {
           DonAI
         </div>
 
-        {/* Input Text încorporat direct în bară */}
+        {/* Input Text */}
         <form onSubmit={handleSendMessage} style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
           <input
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onClick={() => setIsOpen(true)}
-            disabled={isCooldownActive} // Dezactivează inputul fizic în timpul cooldown-ului
+            disabled={isCooldownActive}
             placeholder={isCooldownActive ? `Așteaptă ${cooldownTime}s...` : "Chat cu Don AI"}
             style={{
               width: '100%', background: 'none', border: 'none', color: 'white',
