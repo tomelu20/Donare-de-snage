@@ -76,6 +76,7 @@ class Appointment(Base):
     guest_email = Column(String(100), nullable=True)
     guest_blood_group = Column(String(10), nullable=True, default="Nu știu")
     appointment_date = Column(Date, nullable=True)
+    notes = Column(String(500), nullable=True)
     
     campaign = relationship("Campaign", back_populates="appointments")
     user = relationship("User", back_populates="appointments")

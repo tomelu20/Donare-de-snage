@@ -15,9 +15,21 @@ router = APIRouter(
 
 @router.get("/", response_model=List[CampaignOut])
 def get_campaigns(db: Session = Depends(get_db)):
-    # Returnează toate campaniile active din baza de date
-    campaigns = db.query(Campaign).filter(Campaign.is_active == True).all()
+    # Returnează toate campaniile (active și finalizate) ordonate după dată
+    campaigns = db.query(Campaign).order_by(Campaign.date.desc()).all()
     return campaigns
+
+@router.put("/{id}/toggle-status", status_code=status.HTTP_200_OK)
+def toggle_campaign_status(id: int, db: Session = Depends(get_db)):
+    campaign = db.query(Campaign).filter(Campaign.id == id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campania nu a fost găsită.")
+    
+    campaign.is_active = not campaign.is_active
+    db.commit()
+    
+    status_str = "activată" if campaign.is_active else "finalizată"
+    return {"message": f"Campania a fost {status_str} cu succes.", "is_active": campaign.is_active}
 
 @router.post("/", response_model=CampaignOut, status_code=status.HTTP_201_CREATED)
 def create_campaign(campaign_data: CampaignCreate, db: Session = Depends(get_db)):

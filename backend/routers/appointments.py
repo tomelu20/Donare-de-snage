@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List
+from typing import Optional
+from pydantic import BaseModel
 
 from database import get_db
 from schemas.schemas import AppointmentCreate, AppointmentOut
@@ -192,7 +194,7 @@ def cancel_appointment(id: int, db: Session = Depends(get_db)):
 
 @router.get("/me", response_model=List[AppointmentOut])
 def get_my_appointments(user_id: int, db: Session = Depends(get_db)):
-    # Adăugăm JOIN pentru a prelua titlul campaniei și data corectă
+    # Adăugăm a.is_for_someone_else = 0 pentru a exclude invitații din istoricul personal
     query = text("""
         SELECT 
             a.id, 
@@ -201,11 +203,13 @@ def get_my_appointments(user_id: int, db: Session = Depends(get_db)):
             a.slot_time, 
             a.status, 
             a.created_at,
-            a.appointment_date, -- Data exactă a programării din tabelul appointments
+            a.appointment_date,
             c.title AS campaign_title
         FROM appointments a
         JOIN campaigns c ON a.campaign_id = c.id
-        WHERE a.user_id = :user_id AND a.status != 'cancelled'
+        WHERE a.user_id = :user_id 
+          AND a.status != 'cancelled'
+          AND a.is_for_someone_else = 0  -- <-- FILTRARE ADĂUGATĂ AICI
         ORDER BY a.appointment_date DESC, a.slot_time DESC
     """)
     result = db.execute(query, {"user_id": user_id}).mappings().all()
@@ -218,8 +222,8 @@ def get_all_appointments_for_admin(db: Session = Depends(get_db)):
             a.id AS appointment_id,
             a.slot_time,
             a.status,
-            -- Corecție importantă: Tritem data reală a programării (ex: 22 aprilie), nu data de început a campaniei!
             a.appointment_date AS campaign_date, 
+            a.notes, -- <-- CÂMP NOU SELECTAT
             CASE 
                 WHEN a.is_for_someone_else = 1 THEN a.guest_name 
                 ELSE u.name 
@@ -241,6 +245,24 @@ def get_all_appointments_for_admin(db: Session = Depends(get_db)):
     """)
     result = db.execute(query).mappings().all()
     return result
+
+class NoteUpdatePayload(BaseModel):
+    notes: Optional[str] = None
+
+@router.put("/{id}/notes", status_code=status.HTTP_200_OK)
+def update_appointment_notes(id: int, payload: NoteUpdatePayload, db: Session = Depends(get_db)):
+    query = text("""
+        UPDATE appointments 
+        SET notes = :notes 
+        WHERE id = :app_id
+    """)
+    result = db.execute(query, {"notes": payload.notes, "app_id": id})
+    db.commit()
+    
+    if result.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Programarea nu a fost găsită.")
+        
+    return {"message": "Observația a fost salvată cu succes."}
 
 @router.put("/{id}/attend", status_code=status.HTTP_200_OK)
 def attend_appointment(id: int, db: Session = Depends(get_db)):

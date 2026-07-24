@@ -163,3 +163,27 @@ def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
             detail="Date de conectare invalide."
         )
     return user
+
+from pydantic import BaseModel
+from typing import Optional
+
+class UserUpdatePayload(BaseModel):
+    name: str
+    surname: str
+    phone: str
+    blood_group: str
+
+@router.put("/users/{user_id}", response_model=UserOut)
+def update_user_profile(user_id: int, payload: UserUpdatePayload, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilizatorul nu a fost găsit.")
+        
+    user.name = payload.name
+    user.surname = payload.surname
+    user.phone = payload.phone
+    user.blood_group = payload.blood_group
+    
+    db.commit()
+    db.refresh(user)
+    return user
