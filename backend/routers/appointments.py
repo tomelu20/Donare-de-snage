@@ -296,3 +296,35 @@ def noshow_appointment(id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Programarea nu a fost găsită.")
         
     return {"message": "Donatorul a fost marcat ca absent."}
+
+@router.get("/top-donors", status_code=status.HTTP_200_OK)
+def get_top_donors(db: Session = Depends(get_db)):
+    query = text("""
+        SELECT TOP 10 
+            donor_name AS name,
+            donor_surname AS surname,
+            blood_group,
+            COUNT(*) AS total_donations
+        FROM (
+            SELECT 
+                CASE 
+                    WHEN a.is_for_someone_else = 1 THEN a.guest_name 
+                    ELSE u.name 
+                END AS donor_name,
+                CASE 
+                    WHEN a.is_for_someone_else = 1 THEN a.guest_surname 
+                    ELSE u.surname 
+                END AS donor_surname,
+                CASE 
+                    WHEN a.is_for_someone_else = 1 THEN COALESCE(a.guest_blood_group, 'Nu știu')
+                    ELSE COALESCE(u.blood_group, 'Nu știu')
+                END AS blood_group
+            FROM appointments a
+            LEFT JOIN users u ON a.user_id = u.id
+            WHERE a.status = 'attended'
+        ) AS combined_donors
+        GROUP BY donor_name, donor_surname, blood_group
+        ORDER BY total_donations DESC
+    """)
+    result = db.execute(query).mappings().all()
+    return result

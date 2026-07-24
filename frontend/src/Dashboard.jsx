@@ -16,6 +16,7 @@ function Dashboard({ onLogout }) {
   const [myAppointments, setMyAppointments] = useState([]); 
   const [adminAppointments, setAdminAppointments] = useState([]); 
   const [adminWaitlist, setAdminWaitlist] = useState([]); 
+  const [topDonors, setTopDonors] = useState([]); 
   
   // State-uri pentru observații per programare
   const [notesState, setNotesState] = useState({});
@@ -61,11 +62,11 @@ function Dashboard({ onLogout }) {
       const questionsRes = await axios.get('http://127.0.0.1:8000/eligibility/questions');
       setEligibilityQuestions(questionsRes.data);
 
-      // 3. Preluăm OBLIGATORIU programările proprii ale utilizatorului curent (fie el Admin sau Donator simplu)
+      // 3. Preluăm programările proprii (indiferent dacă e admin sau donator)
       const myAppsRes = await axios.get(`http://127.0.0.1:8000/appointments/me?user_id=${currentUser.id}`);
       setMyAppointments(myAppsRes.data);
 
-      // 4. Dacă este Admin, preluăm ÎN PLUS datele globale pentru panoul de administrare
+      // 4. Dacă utilizatorul este Admin, preluăm datele administrative globale
       if (currentUser.role === 'admin' || currentUser.role === 'ADMIN') {
         const adminAppsRes = await axios.get('http://127.0.0.1:8000/appointments/all');
         setAdminAppointments(adminAppsRes.data);
@@ -79,6 +80,10 @@ function Dashboard({ onLogout }) {
 
         const adminWaitlistRes = await axios.get('http://127.0.0.1:8000/waitlist/all');
         setAdminWaitlist(adminWaitlistRes.data);
+
+        // Preluăm clasamentul celor mai activi donatori
+        const topDonorsRes = await axios.get('http://127.0.0.1:8000/appointments/top-donors');
+        setTopDonors(topDonorsRes.data);
       }
     } catch (err) {
       setApiError(err.response?.data?.detail || 'Nu s-au putut încărca datele de la server.');
@@ -407,6 +412,51 @@ function Dashboard({ onLogout }) {
                               </tr>
                             );
                           })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </section>
+
+                {/* SECȚIUNE TOP 10 DONATORI */}
+                <section style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: '30px', border: '1px solid #e1e4e8' }}>
+                  <h3 style={{ margin: '0 0 20px 0', color: '#2b2d42', borderBottom: '2px solid #f1f3f5', paddingBottom: '10px' }}>
+                    🏆 Top 10 Donatori (Efectivi)
+                  </h3>
+                  {topDonors.length === 0 ? (
+                    <p style={{ color: '#666', fontStyle: 'italic', fontSize: '13px' }}>Nu există încă donări confirmate cu statusul 'Prezent'.</p>
+                  ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
+                        <thead>
+                          <tr style={{ backgroundColor: '#f8f9fa', borderBottom: '2px solid #dee2e6' }}>
+                            <th style={{ padding: '10px 12px', width: '60px' }}>Loc</th>
+                            <th style={{ padding: '10px 12px' }}>Donator</th>
+                            <th style={{ padding: '10px 12px' }}>Grupă Sanguină</th>
+                            <th style={{ padding: '10px 12px', textAlign: 'center' }}>Total Donări Reale</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {topDonors.map((donor, idx) => (
+                            <tr key={donor.id} style={{ borderBottom: '1px solid #eceeef' }}>
+                              <td style={{ padding: '10px 12px', fontWeight: 'bold' }}>
+                                {idx === 0 ? '🥇 1' : idx === 1 ? '🥈 2' : idx === 2 ? '🥉 3' : `${idx + 1}`}
+                              </td>
+                              <td style={{ padding: '10px 12px', fontWeight: 'bold', color: '#2b2d42' }}>
+                                {donor.name} {donor.surname}
+                              </td>
+                              <td style={{ padding: '10px 12px' }}>
+                                <span style={{ backgroundColor: '#fdf0f1', color: '#e63946', padding: '3px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '12px' }}>
+                                  {donor.blood_group}
+                                </span>
+                              </td>
+                              <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                                <strong style={{ color: '#2e7d32', backgroundColor: '#e8f5e9', padding: '4px 12px', borderRadius: '12px', border: '1px solid #c8e6c9' }}>
+                                  {donor.total_donations} donări
+                                </strong>
+                              </td>
+                            </tr>
+                          ))}
                         </tbody>
                       </table>
                     </div>

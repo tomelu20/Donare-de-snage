@@ -11,6 +11,11 @@ function ProfileModal({ user, myAppointments, onClose, onUserUpdated }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // CALCULĂM NUMĂRUL DE DONĂRI REALE (DOAR PREZENT ✓)
+  const attendedCount = myAppointments 
+    ? myAppointments.filter(app => app.status === 'attended').length 
+    : 0;
+
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -25,7 +30,6 @@ function ProfileModal({ user, myAppointments, onClose, onUserUpdated }) {
         blood_group: bloodGroup
       });
 
-      // Actualizăm sesiunea stocată local
       const updatedUserSession = { ...user, ...response.data };
       sessionStorage.setItem('user_session', JSON.stringify(updatedUserSession));
       
@@ -65,7 +69,7 @@ function ProfileModal({ user, myAppointments, onClose, onUserUpdated }) {
           {success && <div style={{ backgroundColor: '#e3ffe3', color: '#198754', padding: '10px', borderRadius: '4px', marginBottom: '15px', fontSize: '13px', fontWeight: 'bold' }}>✔️ {success}</div>}
 
           {/* SECȚIUNE 1: Date Personale */}
-          <section style={{ marginBottom: '30px' }}>
+          <section style={{ marginBottom: '25px' }}>
             <h4 style={{ margin: '0 0 15px 0', color: '#2b2d42', borderBottom: '2px solid #f1f3f5', paddingBottom: '8px' }}>
               📝 Date Personale
             </h4>
@@ -113,11 +117,19 @@ function ProfileModal({ user, myAppointments, onClose, onUserUpdated }) {
             </form>
           </section>
 
-          {/* SECȚIUNE 2: Istoric Donări / Participări */}
+          {/* SECȚIUNE 2: Istoric Donări & Numărător */}
           <section>
-            <h4 style={{ margin: '0 0 15px 0', color: '#2b2d42', borderBottom: '2px solid #f1f3f5', paddingBottom: '8px' }}>
-              🩸 Istoric Participări Donare
-            </h4>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #f1f3f5', paddingBottom: '8px', marginBottom: '15px' }}>
+              <h4 style={{ margin: 0, color: '#2b2d42' }}>
+                🩸 Istoric Participări Donare
+              </h4>
+              
+              {/* AFISARE NUMARATOR DONARI EFECTIVE */}
+              <div style={{ backgroundColor: '#e8f5e9', color: '#2e7d32', padding: '5px 12px', borderRadius: '15px', fontSize: '13px', fontWeight: 'bold', border: '1px solid #c8e6c9' }}>
+                Total donări efectuate: {attendedCount}
+              </div>
+            </div>
+
             {!myAppointments || myAppointments.length === 0 ? (
               <p style={{ color: '#666', fontStyle: 'italic', fontSize: '13px' }}>Nu aveți nicio donare înregistrată în istoric.</p>
             ) : (
